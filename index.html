@@ -1,0 +1,1344 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="theme-color" content="#05050a">
+<title>Penny Warp v1.5.3</title>
+<style>
+:root{
+  --cyan:#00f3ff; --pink:#ff0055; --yellow:#ffe600; --bg:#05050a;
+  --panel:rgba(13,13,28,.96); --white:#fff;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;width:100%;height:100%;overflow:hidden;background:var(--bg);
+  font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,"Noto Sans TC",monospace;color:var(--cyan)}
+html{height:100dvh;-webkit-text-size-adjust:100%;text-size-adjust:100%}
+body{height:100dvh;display:flex;align-items:center;justify-content:center;
+  padding:max(6px,env(safe-area-inset-top)) max(6px,env(safe-area-inset-right))
+          max(6px,env(safe-area-inset-bottom)) max(6px,env(safe-area-inset-left))}
+#app{position:relative;height:min(100%,853px);aspect-ratio:9/16;width:auto;max-width:100%}
+#canvas-container{position:absolute;inset:0;background:var(--bg);overflow:hidden;border-radius:8px}
+canvas{display:block;width:100%;height:100%;touch-action:none}
+
+.player-hud{
+  position:absolute;left:12px;right:12px;z-index:10;display:grid;grid-template-columns:1fr auto;
+  align-items:center;gap:8px;pointer-events:none;background:rgba(0,0,0,.86);
+  border:1px solid rgba(255,255,255,.24);border-radius:10px;padding:7px 12px;font-weight:950;
+  letter-spacing:.03em;text-shadow:0 0 8px currentColor;backdrop-filter:blur(3px)
+}
+.player-hud.top{top:8px;transform:rotate(180deg);color:var(--pink);border-color:rgba(255,0,85,.58)}
+.player-hud.bottom{bottom:8px;color:var(--cyan);border-color:rgba(0,243,255,.58)}
+.player-main{display:flex;align-items:center;gap:8px;min-width:0}
+.player-badge{font-size:14px;white-space:nowrap}.player-role{font-size:11px;color:rgba(255,255,255,.8);white-space:nowrap}
+.player-count{font-size:18px}.hud-time{font-size:13px;color:#fff;white-space:nowrap}
+.hud-time strong{font-size:17px;color:var(--yellow);text-shadow:0 0 8px rgba(255,230,0,.8)}
+
+#pause-badge{
+  position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);
+  z-index:13;pointer-events:none;padding:8px 14px;border:2px solid var(--yellow);
+  color:var(--yellow);background:rgba(0,0,0,.78);font-weight:950;border-radius:9px;
+  text-shadow:0 0 10px var(--yellow);display:none
+}
+#pause-badge.show{display:block}
+
+#fab-btn{
+  position:absolute;top:44%;right:12px;width:56px;height:56px;background:rgba(0,243,255,.16);
+  border:2px solid var(--cyan);border-radius:50%;color:var(--cyan);font-size:22px;
+  display:flex;justify-content:center;align-items:center;cursor:pointer;z-index:18;
+  box-shadow:0 0 12px var(--cyan);transition:.22s transform,.22s background,.28s top;will-change:top
+}
+#fab-btn:active{transform:scale(.93);background:rgba(0,243,255,.35)}
+.menu{
+  position:absolute;left:10px;right:10px;bottom:10px;max-height:76%;overflow-y:auto;
+  -webkit-overflow-scrolling:touch;touch-action:pan-y;background:var(--panel);padding:12px;
+  border:1px solid var(--pink);box-shadow:0 0 18px rgba(255,0,85,.45);border-radius:10px;
+  display:grid;grid-template-columns:1fr 1fr;gap:9px;z-index:17;transition:.22s ease
+}
+.menu.hidden-menu{opacity:0;pointer-events:none;transform:translateY(24px)}
+.control{display:flex;flex-direction:column;gap:5px}.control.full{grid-column:1/-1}
+label{font-size:13px;font-weight:900;color:var(--cyan)}
+select,input[type=number],input[type=range]{width:100%}
+select,input[type=number]{min-height:44px;background:#080810;color:var(--cyan);border:1px solid var(--cyan);border-radius:5px;padding:4px 6px;font:inherit}
+.range-row{display:grid;grid-template-columns:1fr 50px;gap:8px;align-items:center;min-height:44px;border:1px solid rgba(0,243,255,.35);border-radius:6px;padding:5px 8px}
+.range-row output{text-align:right;color:#fff;font-weight:900}.range-row input{accent-color:var(--pink)}
+.toggle-row{display:flex;align-items:center;justify-content:space-between;min-height:44px;border:1px solid rgba(0,243,255,.5);border-radius:5px;padding:0 8px}
+.toggle-row input{width:20px;height:20px;accent-color:var(--pink)}
+button.action-btn{min-height:46px;background:var(--pink);color:#fff;border:0;border-radius:6px;padding:8px 12px;font-weight:900;font:inherit;cursor:pointer;box-shadow:0 0 10px rgba(255,0,85,.8)}
+.asset-btn{min-height:44px;border:1px solid var(--cyan);border-radius:6px;background:rgba(0,243,255,.1);color:var(--cyan);font:inherit;font-weight:900;padding:8px;cursor:pointer}
+.asset-btn.danger{border-color:var(--pink);color:#fff;background:rgba(255,0,85,.18)}
+.action-btn:active,.asset-btn:active{transform:scale(.98)}
+.asset-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.file-input{position:absolute;width:1px;height:1px;opacity:0;pointer-events:none}
+.asset-status,.note{font-size:11px;color:rgba(255,255,255,.72);line-height:1.35}.note strong{color:var(--yellow)}
+.section-title{grid-column:1/-1;color:#fff;font-weight:950;font-size:13px;padding-top:5px;border-top:1px solid rgba(255,255,255,.12)}
+
+.overlay{
+  position:absolute;inset:0;background:rgba(8,8,16,.9);display:flex;flex-direction:column;
+  justify-content:center;align-items:center;padding:28px;z-index:25;backdrop-filter:blur(4px)
+}
+.overlay h1{font-size:clamp(30px,10vw,50px);color:var(--pink);text-shadow:0 0 16px var(--pink);margin:8px 0;text-align:center;line-height:1.05}
+.overlay p{font-size:16px;color:var(--cyan);margin:8px 0 24px;text-align:center;line-height:1.55;white-space:pre-line}
+.overlay .action-btn{min-width:150px;min-height:48px;font-size:18px}.hidden{display:none!important}
+.hint{position:absolute;top:57px;left:50%;transform:translateX(-50%);z-index:9;font-size:10px;color:rgba(255,255,255,.66);pointer-events:none;white-space:nowrap}
+
+#toast-layer{position:absolute;inset:0;pointer-events:none;z-index:21}
+.comic-toast{
+  position:absolute;transform:translate(-50%,-50%) rotate(-6deg);
+  color:#ffe600;-webkit-text-stroke:6px #ffffff;font-weight:1000;font-size:34px;
+  text-shadow:0 0 3px #000,3px 3px 0 #000,0 0 18px rgba(255,230,0,.95);
+  paint-order:stroke fill;animation:comicPop .6s ease-out forwards;white-space:nowrap
+}
+.comic-sub{
+  position:absolute;transform:translate(-50%,-50%) rotate(3deg);
+  color:#ffe600;-webkit-text-stroke:4px #ffffff;font-weight:1000;font-size:17px;
+  text-shadow:0 0 3px #000,2px 2px 0 #000,0 0 12px rgba(255,230,0,.85);
+  paint-order:stroke fill;animation:comicPop .5s ease-out forwards;white-space:nowrap
+}
+.event-toast{
+  position:absolute;transform:translate(-50%,-50%) rotate(-3deg);
+  color:#ffe600;-webkit-text-stroke:5px #fff;font-weight:1000;
+  text-shadow:0 0 3px #000,3px 3px 0 #000,0 0 16px currentColor;
+  paint-order:stroke fill;white-space:nowrap;animation:comicPop var(--dur,.55s) ease-out forwards
+}
+@keyframes comicPop{
+  0%{opacity:0;transform:translate(-50%,-50%) scale(.35) rotate(-14deg)}
+  38%{opacity:1;transform:translate(-50%,-50%) scale(1.24) rotate(-4deg)}
+  100%{opacity:0;transform:translate(-50%,-50%) scale(.95) rotate(3deg)}
+}
+
+@media(max-height:700px){
+  .menu{max-height:80%;padding:9px;gap:7px}.hint{display:none}.control{gap:3px}label{font-size:11px}
+  select,input[type=number],.toggle-row,.asset-btn{min-height:40px}.player-hud{padding:6px 9px}.player-count{font-size:16px}
+}
+</style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
+</head>
+<body>
+<div id="app">
+  <div id="canvas-container">
+    <div class="player-hud top">
+      <div class="player-main"><span class="player-badge">P2 · RED</span><span id="p2-role" class="player-role">PLAYER 2</span><span class="player-count">× <span id="p2-count">5</span></span></div>
+      <div class="hud-time">TIME <strong id="timer-top">∞</strong></div>
+    </div>
+    <div class="player-hud bottom">
+      <div class="player-main"><span class="player-badge">P1 · BLUE</span><span id="p1-role" class="player-role">PLAYER 1</span><span class="player-count">× <span id="p1-count">5</span></span></div>
+      <div class="hud-time">TIME <strong id="timer-bottom">∞</strong></div>
+    </div>
+
+    <div class="hint">點選棋子 → 拖曳蓄力 → 放開發射</div>
+    <div id="pause-badge">PAUSED</div>
+    <div id="toast-layer"></div>
+    <button id="fab-btn" type="button" aria-label="開啟設定">⚙</button>
+
+    <div id="game-overlay" class="overlay">
+      <h1 id="overlay-title">PENNY WARP</h1>
+      <p id="overlay-desc">準備對戰，點擊開始遊戲</p>
+      <button id="start-btn" class="action-btn" type="button">開始遊戲</button>
+    </div>
+
+    <canvas id="gameCanvas" width="360" height="640"></canvas>
+
+    <div id="control-menu" class="menu hidden-menu">
+      <div class="control">
+        <label for="mode-select">模式</label>
+        <select id="mode-select"><option value="pvp">雙人同屏 PvP</option><option value="ai">單人 VS AI</option></select>
+      </div>
+      <div class="control">
+        <label for="win-select">勝負</label>
+        <select id="win-select"><option value="clear">清空制 Clear</option><option value="time">60 秒計時</option></select>
+      </div>
+      <div class="control">
+        <label for="puck-num">棋子數</label>
+        <input type="number" id="puck-num" value="5" min="1" max="10" inputmode="numeric">
+        <div class="note">1～10 顆，<strong>最多 10 顆</strong></div>
+      </div>
+      <div class="control">
+        <label>音效 / 震動</label>
+        <div class="toggle-row"><span>ON</span><input type="checkbox" id="audio-toggle" checked></div>
+      </div>
+
+      <div class="section-title">選中棋子</div>
+      <div class="control">
+        <label for="select-effect">特效模式</label>
+        <select id="select-effect">
+          <option value="ac">A+C｜能量鎖定</option>
+          <option value="bc" selected>B+C｜Warp 鎖定</option>
+          <option value="none">X｜無</option>
+        </select>
+      </div>
+      <div class="control">
+        <label for="select-intensity">選取強度</label>
+        <div class="range-row"><input id="select-intensity" type="range" min="0" max="100" value="70"><output id="select-intensity-out">70%</output></div>
+      </div>
+      <div class="control full">
+        <label for="trail-intensity">尾焰效果</label>
+        <div class="range-row"><input id="trail-intensity" type="range" min="0" max="100" value="80"><output id="trail-intensity-out">80%</output></div>
+      </div>
+
+      <div class="section-title">彈射瞄準</div>
+      <div class="control full">
+        <label for="aim-mode">瞄準指示</label>
+        <select id="aim-mode">
+          <option value="simple">簡潔</option>
+          <option value="warp" selected>Warp Power</option>
+          <option value="off">關閉</option>
+        </select>
+      </div>
+
+      <div class="section-title">碰撞打擊感</div>
+      <div class="control">
+        <label for="impact-mode">碰撞特效</label>
+        <select id="impact-mode">
+          <option value="neon">A｜Neon Impact</option>
+          <option value="spark">B｜Cyber Spark</option>
+          <option value="warp" selected>C｜Warp Burst</option>
+          <option value="off">X｜無</option>
+        </select>
+      </div>
+      <div class="control">
+        <label for="impact-intensity">碰撞強度</label>
+        <div class="range-row"><input id="impact-intensity" type="range" min="0" max="100" value="75"><output id="impact-intensity-out">75%</output></div>
+      </div>
+      <div class="control full">
+        <label for="quality-mode">特效品質</label>
+        <select id="quality-mode"><option value="auto" selected>自動</option><option value="high">高</option><option value="low">省電</option></select>
+      </div>
+
+      <div class="section-title">漫畫文字特效</div>
+      <div class="control">
+        <label>漫畫文字</label>
+        <div class="toggle-row"><span>ON</span><input type="checkbox" id="comic-toggle" checked></div>
+      </div>
+      <div class="control">
+        <label>連續得分文字</label>
+        <div class="toggle-row"><span>ON</span><input type="checkbox" id="combo-toggle" checked></div>
+      </div>
+      <div class="control full">
+        <label for="comic-level">漫畫文字強度</label>
+        <select id="comic-level">
+          <option value="low">低</option>
+          <option value="normal" selected>標準</option>
+          <option value="high">華麗</option>
+        </select>
+      </div>
+
+      <div class="section-title">場地造型</div>
+      <div class="control full">
+        <label for="arena-theme">門柱 / 外框主題</label>
+        <select id="arena-theme"><option value="cyber" selected>Cyberpunk｜賽博龐克</option><option value="farm">Cute Farm｜可愛農場</option></select>
+        <div class="note">中央單一洞口與 Matter.js 碰撞區維持原案。</div>
+      </div>
+
+      <div class="section-title">球場底圖</div>
+      <div class="control full">
+        <input id="bg-file" class="file-input" type="file" accept="image/*">
+        <div class="asset-actions"><button id="bg-upload-btn" class="asset-btn" type="button">選照片替換</button><button id="bg-reset-btn" class="asset-btn danger" type="button">恢復預設</button></div>
+        <div id="bg-status" class="asset-status">目前：預設底圖</div>
+      </div>
+
+      <div class="section-title">棋子貼圖</div>
+      <div class="control full">
+        <label>P1 藍色棋子</label>
+        <input id="p1-file" class="file-input" type="file" accept="image/*">
+        <div class="asset-actions"><button id="p1-upload" class="asset-btn" type="button">選 P1 貼圖</button><button id="p1-reset" class="asset-btn danger" type="button">恢復 P1</button></div>
+        <div id="p1-status" class="asset-status">目前：預設藍色棋子</div>
+      </div>
+      <div class="control full">
+        <label>P2 紅色棋子</label>
+        <input id="p2-file" class="file-input" type="file" accept="image/*">
+        <div class="asset-actions"><button id="p2-upload" class="asset-btn" type="button">選 P2 貼圖</button><button id="p2-reset" class="asset-btn danger" type="button">恢復 P2</button></div>
+        <div id="p2-status" class="asset-status">目前：預設紅色棋子</div>
+      </div>
+
+      <div class="section-title">系統</div>
+      <div class="control full"><button id="reset-btn" class="action-btn" type="button">重新開始（保留設定）</button></div>
+      <div class="control full"><button id="defaults-btn" class="asset-btn danger" type="button">恢復遊戲預設設定</button></div>
+    </div>
+  </div>
+</div>
+
+<script>
+(() => {
+'use strict';
+const { Engine, Composite, Bodies, Vector, Body, Events } = Matter;
+const engine = Engine.create({ gravity:{x:0,y:0}, positionIterations:12, velocityIterations:10, constraintIterations:4 });
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+
+const $ = id => document.getElementById(id);
+const els = {
+  menu:$('control-menu'), fab:$('fab-btn'), pauseBadge:$('pause-badge'), toastLayer:$('toast-layer'),
+  overlay:$('game-overlay'), title:$('overlay-title'), desc:$('overlay-desc'), start:$('start-btn'),
+  reset:$('reset-btn'), defaults:$('defaults-btn'), mode:$('mode-select'), win:$('win-select'), puckNum:$('puck-num'),
+  audio:$('audio-toggle'), p1:$('p1-count'), p2:$('p2-count'), p1Role:$('p1-role'), p2Role:$('p2-role'),
+  timerTop:$('timer-top'), timerBottom:$('timer-bottom'),
+  selectEffect:$('select-effect'), selectIntensity:$('select-intensity'), selectIntensityOut:$('select-intensity-out'),
+  trailIntensity:$('trail-intensity'), trailIntensityOut:$('trail-intensity-out'), aimMode:$('aim-mode'),
+  impactMode:$('impact-mode'), impactIntensity:$('impact-intensity'), impactIntensityOut:$('impact-intensity-out'),
+  qualityMode:$('quality-mode'), comic:$('comic-toggle'), combo:$('combo-toggle'), comicLevel:$('comic-level'), arenaTheme:$('arena-theme'),
+  bgFile:$('bg-file'), bgUpload:$('bg-upload-btn'), bgReset:$('bg-reset-btn'), bgStatus:$('bg-status'),
+  p1File:$('p1-file'), p2File:$('p2-file'), p1Upload:$('p1-upload'), p2Upload:$('p2-upload'),
+  p1Reset:$('p1-reset'), p2Reset:$('p2-reset'), p1Status:$('p1-status'), p2Status:$('p2-status')
+};
+
+const DEFAULT_BG_URL='watermarked_00.png';
+const CYBER_OVERLAY_URL='arena_cyberpunk_overlay_hd.png';
+const SETTINGS_KEY='pennyWarp.settings.v1';
+const DB_NAME='PennyWarpDB', DB_VERSION=1, STORE='assets';
+const FIELD={left:10,right:350,top:60,bottom:580,mid:320};
+const SAFE={left:24,right:336,top:64,bottom:576};
+const GATE={openingLeft:154,openingRight:206,centerSafeLeft:168,centerSafeRight:192,mid:320};
+const LOCK_ZONE_HALF=58;
+const MAX_SPEED=18;
+const SELECT_SPEED=0.75;
+const SHOT_COOLDOWN=300;
+const HIT_RADIUS=42;
+
+const DEFAULTS={
+  mode:'pvp', win:'clear', puckNum:5, audio:true,
+  selectEffect:'bc', selectIntensity:70, trailIntensity:80, aimMode:'warp',
+  impactMode:'warp', impactIntensity:75, qualityMode:'auto',
+  comic:true, combo:true, comicLevel:'normal', arenaTheme:'cyber'
+};
+
+let pucks=[], particles=[], shockwaves=[], popups=[];
+let selectedPuck=null, dragStart=null, dragCurrent=null, pointerId=null, ambiguousCandidates=null;
+let selectionMode='none', selectionAnchor=null;
+let gameState='MENU', isAI=false, isPaused=false, pausedByMenu=false;
+let timer=60, lastFrame=performance.now(), lastAIShot=0, lastShotAt=0, lastTap={x:0,y:0,t:0,index:0};
+let countdownToken=0, countdownRunning=false;
+let audioCtx=null, bgImage=null, cyberOverlayImage=null, cyberOverlayReady=false;
+let puckImages={1:null,2:null}, hitStopUntil=0, shake=0, qualityFactor=1, fpsEMA=60;
+let prevPositions=new Map();
+let borderPulse={player:0,life:0,max:1};
+let comboState={player:0,count:0,lastAt:0};
+let puckTerritoryState=new Map();
+let puckScoreCooldown=new Map();
+let comicEvents=[];
+let recentComicEvents=[];
+const SCORE_DEPTH=22;
+const SCORE_COOLDOWN_MS=650;
+const COMBO_WINDOW_MS=5000;
+
+function clamp(v,min,max){return Math.max(min,Math.min(max,v))}
+function mag(v){return Math.hypot(v.x,v.y)}
+function setTimerText(v){els.timerTop.textContent=v;els.timerBottom.textContent=v}
+function updateRoles(){isAI=els.mode.value==='ai';els.p1Role.textContent=isAI?'YOU':'PLAYER 1';els.p2Role.textContent=isAI?'AI':'PLAYER 2'}
+
+function ensureAudio(){
+  if(!audioCtx) audioCtx=new (window.AudioContext||window.webkitAudioContext)();
+  if(audioCtx.state==='suspended') audioCtx.resume();
+}
+function playTone(freq=500,dur=.05,type='square',gainVal=.06){
+  if(!els.audio.checked)return;
+  try{ensureAudio();const o=audioCtx.createOscillator(),g=audioCtx.createGain();o.type=type;o.frequency.value=freq;
+    o.connect(g);g.connect(audioCtx.destination);g.gain.setValueAtTime(gainVal,audioCtx.currentTime);
+    g.gain.exponentialRampToValueAtTime(.001,audioCtx.currentTime+dur);o.start();o.stop(audioCtx.currentTime+dur)}catch(_){}
+}
+function vibrate(ms){if(els.audio.checked&&navigator.vibrate)navigator.vibrate(ms)}
+
+function openDB(){
+  return new Promise((resolve,reject)=>{
+    const r=indexedDB.open(DB_NAME,DB_VERSION);
+    r.onupgradeneeded=()=>{const db=r.result;if(!db.objectStoreNames.contains(STORE))db.createObjectStore(STORE)};
+    r.onsuccess=()=>resolve(r.result);r.onerror=()=>reject(r.error);
+  });
+}
+async function idbPut(key,val){try{const db=await openDB();const tx=db.transaction(STORE,'readwrite');tx.objectStore(STORE).put(val,key)}catch(_){}}
+async function idbGet(key){try{const db=await openDB();return await new Promise((res,rej)=>{const r=db.transaction(STORE).objectStore(STORE).get(key);r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error)})}catch(_){return null}}
+async function idbDelete(key){try{const db=await openDB();db.transaction(STORE,'readwrite').objectStore(STORE).delete(key)}catch(_){}}
+
+function settingsFromUI(){
+  return {
+    mode:els.mode.value,win:els.win.value,puckNum:clamp(parseInt(els.puckNum.value)||5,1,10),audio:els.audio.checked,
+    selectEffect:els.selectEffect.value,selectIntensity:+els.selectIntensity.value,trailIntensity:+els.trailIntensity.value,
+    aimMode:els.aimMode.value,impactMode:els.impactMode.value,impactIntensity:+els.impactIntensity.value,
+    qualityMode:els.qualityMode.value,comic:els.comic.checked,combo:els.combo.checked,comicLevel:els.comicLevel.value,
+    arenaTheme:els.arenaTheme.value
+  };
+}
+function applySettings(s){
+  const x={...DEFAULTS,...s};
+  els.mode.value=x.mode;els.win.value=x.win;els.puckNum.value=x.puckNum;els.audio.checked=x.audio;
+  els.selectEffect.value=x.selectEffect;els.selectIntensity.value=x.selectIntensity;els.trailIntensity.value=x.trailIntensity;
+  els.aimMode.value=x.aimMode;els.impactMode.value=x.impactMode;els.impactIntensity.value=x.impactIntensity;
+  els.qualityMode.value=x.qualityMode;els.comic.checked=x.comic;els.combo.checked=x.combo;els.comicLevel.value=x.comicLevel;els.arenaTheme.value=x.arenaTheme;
+  syncOutputs();updateRoles();
+}
+function saveSettings(){localStorage.setItem(SETTINGS_KEY,JSON.stringify(settingsFromUI()))}
+function loadSettings(){try{applySettings(JSON.parse(localStorage.getItem(SETTINGS_KEY)||'{}'))}catch(_){applySettings(DEFAULTS)}}
+function restoreDefaults(){
+  if(!confirm('恢復 Penny Warp 遊戲預設設定？\\n自訂底圖與棋子圖片不會刪除。'))return;
+  localStorage.removeItem(SETTINGS_KEY);applySettings(DEFAULTS);saveSettings();resetGame();
+}
+function syncOutputs(){
+  els.selectIntensityOut.value=els.selectIntensity.value+'%';
+  els.trailIntensityOut.value=els.trailIntensity.value+'%';
+  els.impactIntensityOut.value=els.impactIntensity.value+'%';
+}
+
+function blobToImage(blob){
+  return new Promise((resolve,reject)=>{const url=URL.createObjectURL(blob),img=new Image();
+    img.onload=()=>resolve(img);img.onerror=reject;img.src=url});
+}
+async function restorePersistedAssets(){
+  const bg=await idbGet('bg'),p1=await idbGet('p1'),p2=await idbGet('p2');
+  if(bg){try{bgImage=await blobToImage(bg);els.bgStatus.textContent='目前：自訂底圖 ✓ 已儲存'}catch(_){loadDefaultBackground()}} else loadDefaultBackground();
+  if(p1){try{puckImages[1]=await blobToImage(p1);els.p1Status.textContent='目前：自訂 P1 ✓ 已儲存'}catch(_){}}
+  if(p2){try{puckImages[2]=await blobToImage(p2);els.p2Status.textContent='目前：自訂 P2 ✓ 已儲存'}catch(_){}}
+}
+
+function loadDefaultBackground(){
+  bgImage=null;els.bgStatus.textContent='預設底圖載入中…';
+  const img=new Image();let done=false;
+  const finish=ok=>{if(done)return;done=true;if(ok){bgImage=img;els.bgStatus.textContent='目前：watermarked_00.png'}else{bgImage=null;els.bgStatus.textContent='預設底圖無法載入｜黑色底圖'}};
+  img.onload=()=>finish(true);img.onerror=()=>finish(false);img.src=DEFAULT_BG_URL+'?v=1.5.3';setTimeout(()=>finish(false),2500);
+}
+function loadCyberOverlay(){
+  const img=new Image();img.onload=()=>{cyberOverlayImage=img;cyberOverlayReady=true};img.onerror=()=>{cyberOverlayImage=null;cyberOverlayReady=false};
+  img.src=CYBER_OVERLAY_URL+'?v=1.5.3';
+}
+
+async function setAsset(kind,file){
+  if(!file||!file.type.startsWith('image/'))return;
+  await idbPut(kind,file);
+  const img=await blobToImage(file);
+  if(kind==='bg'){bgImage=img;els.bgStatus.textContent=`目前：${file.name} ✓ 已儲存`}
+  if(kind==='p1'){puckImages[1]=img;els.p1Status.textContent=`目前：${file.name} ✓ 已儲存`}
+  if(kind==='p2'){puckImages[2]=img;els.p2Status.textContent=`目前：${file.name} ✓ 已儲存`}
+  playTone(660,.06);
+}
+async function resetAsset(kind){
+  await idbDelete(kind);
+  if(kind==='bg'){els.bgFile.value='';loadDefaultBackground()}
+  if(kind==='p1'){els.p1File.value='';puckImages[1]=null;els.p1Status.textContent='目前：預設藍色棋子'}
+  if(kind==='p2'){els.p2File.value='';puckImages[2]=null;els.p2Status.textContent='目前：預設紅色棋子'}
+}
+
+function setupWalls(){
+  Composite.clear(engine.world,false,true);pucks=[];particles=[];shockwaves=[];popups=[];prevPositions.clear();
+  puckTerritoryState.clear();puckScoreCooldown.clear();comboState={player:0,count:0,lastAt:0};borderPulse={player:0,life:0,max:1};comicEvents=[];recentComicEvents=[];
+  const wall={isStatic:true,restitution:.98,friction:0,label:'WALL'};
+  const bodies=[
+    Bodies.rectangle(180,48,360,28,wall),Bodies.rectangle(180,592,360,28,wall),
+    Bodies.rectangle(-30,320,80,640,wall),Bodies.rectangle(390,320,80,640,wall),
+    Bodies.rectangle(65,320,110,26,{...wall,label:'GATE'}),Bodies.rectangle(295,320,110,26,{...wall,label:'GATE'}),
+    Bodies.rectangle(138,320,32,60,{...wall,label:'POST',chamfer:{radius:6}}),
+    Bodies.rectangle(222,320,32,60,{...wall,label:'POST',chamfer:{radius:6}})
+  ];
+  Composite.add(engine.world,bodies);
+}
+function rowXs(n){
+  if(n<=1)return[180];
+  const gap=n<=5?52:48,start=180-((n-1)*gap)/2;
+  return Array.from({length:n},(_,i)=>start+i*gap);
+}
+function spawnSide(player,count){
+  const activeH=FIELD.bottom-FIELD.top,baseY=player===2?FIELD.top+activeH*.24:FIELD.top+activeH*.76;
+  const rows=count<=6?[count]:[Math.ceil(count/2),Math.floor(count/2)];
+  const ys=rows.length===1?[baseY]:[baseY-17,baseY+17];
+  rows.forEach((n,r)=>rowXs(n).forEach(x=>{
+    const p=Bodies.circle(x,ys[r],14,{restitution:.96,friction:.002,frictionAir:.016,label:'PUCK',player});
+    p.plugin={player};pucks.push(p);puckTerritoryState.set(p.id,player===1?'own':'own');
+  }));
+  Composite.add(engine.world,pucks.filter(p=>!Composite.allBodies(engine.world).includes(p)));
+}
+function spawnPucks(n){spawnSide(2,n);spawnSide(1,n)}
+function halfCounts(){let top=0,bottom=0;for(const p of pucks){if(p.position.y<FIELD.mid)top++;else bottom++}return{top,bottom}}
+function updateCount(){const c=halfCounts();els.p1.textContent=c.bottom;els.p2.textContent=c.top}
+
+function closeSettingsPanel(){
+  els.menu.classList.add('hidden-menu');
+  pausedByMenu=false;
+  els.pauseBadge.classList.remove('show');
+}
+function resetGame(){
+  countdownToken++;
+  countdownRunning=false;
+  gameState='MENU';
+  isPaused=false;
+  pausedByMenu=false;
+  closeSettingsPanel();
+  clearSelection(true);
+  const n=clamp(parseInt(els.puckNum.value)||5,1,10);
+  els.puckNum.value=n;
+  updateRoles();
+  setupWalls();
+  spawnPucks(n);
+  updateCount();
+  timer=60;
+  setTimerText(els.win.value==='time'?'60':'∞');
+  els.overlay.classList.remove('hidden');
+  els.start.classList.remove('hidden');
+  els.title.textContent='PENNY WARP';
+  els.desc.textContent=isAI
+    ?'P1 藍色＝YOU｜P2 紅色＝AI\n把自己半場的棋子全部彈到對方半場'
+    :'P1 藍色在下方｜P2 紅色在上方\n把自己半場的棋子全部彈到對方半場';
+  els.start.textContent='開始遊戲';
+}
+function sleep(ms){return new Promise(resolve=>setTimeout(resolve,ms))}
+function speakGo(){ /* v1.5.3：GO 語音已取消 */ }
+function countdownTone(step){
+  if(!els.audio.checked)return;
+  if(step==='READY')playTone(620,.08,'square',.05);
+  else if(step==='GO'){
+    playTone(880,.12,'square',.075);
+    setTimeout(()=>playTone(1180,.09,'square',.055),65);
+    vibrate(35);
+  }else{
+    playTone(470,.075,'square',.055);
+  }
+}
+async function runReadyCountdown(kind='new'){
+  if(countdownRunning)return;
+  countdownRunning=true;
+  const token=++countdownToken;
+  const resuming=kind==='resume';
+  ensureAudio();
+
+  closeSettingsPanel();
+  isPaused=true;
+  gameState='COUNTDOWN';
+  clearSelection(true);
+  els.overlay.classList.remove('hidden');
+  els.start.classList.add('hidden');
+
+  const steps=[
+    {text:'READY',ms:700},
+    {text:'3',ms:850},
+    {text:'2',ms:850},
+    {text:'1',ms:850},
+    {text:'GO!',ms:520}
+  ];
+
+  for(const step of steps){
+    if(token!==countdownToken){countdownRunning=false;return}
+    els.title.textContent=step.text;
+    els.desc.textContent=resuming?'比賽即將繼續':'準備開始';
+    countdownTone(step.text==='GO!'?'GO':step.text);
+    await sleep(step.ms);
+  }
+
+  if(token!==countdownToken){countdownRunning=false;return}
+  els.overlay.classList.add('hidden');
+  els.start.classList.remove('hidden');
+  gameState='PLAYING';
+  isPaused=false;
+  pausedByMenu=false;
+  lastFrame=performance.now();
+  lastAIShot=lastFrame;
+  countdownRunning=false;
+}
+function startNewRoundFromOverlay(){
+  // 初次開始與 GAME OVER 的「再玩一次」都重建完整新局
+  resetGame();
+  runReadyCountdown('new');
+}
+function checkWin(){
+  if(gameState!=='PLAYING')return;
+  const {top,bottom}=halfCounts();
+  let winner=null;
+
+  // Clear 與 60 秒制都允許「先清空自己半場」立即獲勝
+  if(bottom===0 && top===0){
+    winner='DRAW';
+  }else if(bottom===0){
+    winner='P1';
+  }else if(top===0){
+    winner=isAI?'AI':'P2';
+  }else if(els.win.value==='time' && timer<=0){
+    if(bottom<top)winner='P1';
+    else if(top<bottom)winner=isAI?'AI':'P2';
+    else winner='DRAW';
+  }
+
+  if(winner){
+    countdownToken++;
+    countdownRunning=false;
+    gameState='GAMEOVER';
+    isPaused=true;
+    clearSelection(true);
+    closeSettingsPanel();
+    els.overlay.classList.remove('hidden');
+    els.start.classList.remove('hidden');
+    els.title.textContent=winner==='DRAW'?'DRAW':'GAME OVER';
+    els.desc.textContent=winner==='DRAW'?'雙方平手！':`獲勝者：${winner}`;
+    els.start.textContent='再玩一次';
+    playTone(760,.25);
+    vibrate(60);
+  }
+}
+function toggleMenu(){
+  if(countdownRunning)return;
+  const opening=els.menu.classList.contains('hidden-menu');
+
+  if(opening){
+    els.menu.classList.remove('hidden-menu');
+    if(gameState==='PLAYING'){
+      pausedByMenu=true;
+      isPaused=true;
+      els.pauseBadge.classList.add('show');
+      clearSelection(true);
+    }
+    return;
+  }
+
+  // 關閉設定
+  els.menu.classList.add('hidden-menu');
+  if(gameState==='PLAYING' && pausedByMenu){
+    pausedByMenu=false;
+    els.pauseBadge.classList.remove('show');
+    // 暫停返回也走 READY → 3 → 2 → 1 → GO!
+    runReadyCountdown('resume');
+  }
+}
+
+function canvasPos(e){
+  const r=canvas.getBoundingClientRect();
+  return{x:(e.clientX-r.left)*(360/r.width),y:(e.clientY-r.top)*(640/r.height)}
+}
+function selectable(p){return mag(p.velocity)<SELECT_SPEED && (isAI?p.position.y>=FIELD.mid:true)}
+function shooterForPuckAtSelection(p){
+  // 同機雙人：由棋子「被操作時所在半場」判定操作者。
+  // VS AI：玩家只能操作下半場，AI 永遠是 P2。
+  if(isAI)return 1;
+  return p.position.y>=FIELD.mid?1:2;
+}
+function inContestZone(p){return Math.abs(p.position.y-FIELD.mid)<=LOCK_ZONE_HALF}
+
+const EVENT_PRIORITY={
+  'GOD LIKE!':100,'RAMPAGE!':90,'LOCK BREAK!':80,'TRIPLE!':70,'DOUBLE!':65,
+  'CLANG!':60,'WARP HIT!':55,'SMASH!':45,'NICE SHOT!':35,'AIM CANCELLED':20
+};
+const COMIC_DURATIONS={
+  'CLANG!':.9,'SMASH!':.9,'WARP HIT!':1.0,'NICE SHOT!':1.2,
+  'DOUBLE!':1.2,'TRIPLE!':1.3,'RAMPAGE!':1.4,'GOD LIKE!':1.5,
+  'LOCK BREAK!':1.2,'AIM CANCELLED':1.0
+};
+function comicScale(){
+  return els.comicLevel.value==='low'?.84:els.comicLevel.value==='high'?1.16:1;
+}
+function clampComicPoint(x,y){
+  return {x:clamp(x,70,290),y:clamp(y,95,545)};
+}
+function showEventText(textLabel,x=180,y=300,duration=null,player=0,sub=''){
+  if(!els.comic.checked)return;
+  const now=performance.now();
+  const prio=EVENT_PRIORITY[textLabel]||10;
+  const dur=duration||COMIC_DURATIONS[textLabel]||1.0;
+
+  // 同區域短時間內只保留最高優先級事件
+  recentComicEvents=recentComicEvents.filter(e=>now-e.t<360);
+  const nearby=recentComicEvents.find(e=>Math.hypot(e.x-x,e.y-y)<76 && now-e.t<300);
+  if(nearby && nearby.prio>prio)return;
+
+  if(nearby){
+    comicEvents=comicEvents.filter(e=>e.id!==nearby.id);
+    recentComicEvents=recentComicEvents.filter(e=>e!==nearby);
+  }
+
+  const p=clampComicPoint(x,y);
+  const id=now+'-'+Math.random();
+  const evt={
+    id,label:textLabel,sub,x:p.x,y:p.y,start:now,duration:dur*1000,player,prio,
+    seed:Math.floor(Math.random()*100000),scale:comicScale()
+  };
+  comicEvents.push(evt);
+  recentComicEvents.push({id,t:now,x,y,prio});
+  if(comicEvents.length>3){
+    comicEvents.sort((a,b)=>b.prio-a.prio || b.start-a.start);
+    comicEvents=comicEvents.slice(0,3);
+  }
+}
+function seeded01(seed,i){
+  const v=Math.sin((seed+1)*(i+11)*12.9898)*43758.5453;
+  return v-Math.floor(v);
+}
+function comicLines(label){
+  if(label==='NICE SHOT!')return ['NICE','SHOT!'];
+  if(label==='LOCK BREAK!')return ['LOCK','BREAK!'];
+  if(label==='WARP HIT!')return ['WARP','HIT!'];
+  if(label==='GOD LIKE!')return ['GOD','LIKE!'];
+  return [label];
+}
+function drawComicStarburst(e,alpha,scale){
+  const base=e.player===2?'#ff0055':'#00dfff';
+  const spikes=e.label==='LOCK BREAK!'?18:14;
+  ctx.save();
+  ctx.globalAlpha=alpha;
+
+  // 黑色外層爆炸
+  ctx.beginPath();
+  for(let i=0;i<spikes*2;i++){
+    const a=-Math.PI/2+i*Math.PI/spikes;
+    const long=i%2===0;
+    const rnd=.82+seeded01(e.seed,i)*.28;
+    const r=(long?68:42)*rnd*scale;
+    const x=Math.cos(a)*r,y=Math.sin(a)*r*.72;
+    if(i===0)ctx.moveTo(x,y);else ctx.lineTo(x,y);
+  }
+  ctx.closePath();ctx.fillStyle='#050505';ctx.fill();
+
+  // 玩家色星爆
+  ctx.beginPath();
+  for(let i=0;i<spikes*2;i++){
+    const a=-Math.PI/2+i*Math.PI/spikes;
+    const long=i%2===0;
+    const rnd=.82+seeded01(e.seed+17,i)*.25;
+    const r=(long?62:37)*rnd*scale;
+    const x=Math.cos(a)*r,y=Math.sin(a)*r*.70;
+    if(i===0)ctx.moveTo(x,y);else ctx.lineTo(x,y);
+  }
+  ctx.closePath();ctx.fillStyle=base;ctx.fill();
+
+  // 白色內核爆炸
+  ctx.beginPath();
+  for(let i=0;i<spikes*2;i++){
+    const a=-Math.PI/2+i*Math.PI/spikes;
+    const long=i%2===0;
+    const r=(long?50:30)*(.88+seeded01(e.seed+33,i)*.18)*scale;
+    const x=Math.cos(a)*r,y=Math.sin(a)*r*.66;
+    if(i===0)ctx.moveTo(x,y);else ctx.lineTo(x,y);
+  }
+  ctx.closePath();ctx.fillStyle='rgba(255,255,255,.95)';ctx.fill();
+
+  // 速度線
+  ctx.lineCap='round';
+  for(let i=0;i<8;i++){
+    const a=(-.92+seeded01(e.seed+60,i)*1.84);
+    const side=i%2===0?-1:1;
+    const sx=side*(75+seeded01(e.seed+80,i)*15)*scale;
+    const sy=Math.sin(a)*(42+seeded01(e.seed+90,i)*24)*scale;
+    const ex=side*(105+seeded01(e.seed+100,i)*25)*scale;
+    const ey=sy+Math.sin(a)*14*scale;
+    ctx.strokeStyle=i%3===0?'#ffe600':'#ffffff';
+    ctx.lineWidth=(i%3===0?4:2.5)*scale;
+    ctx.beginPath();ctx.moveTo(sx,sy);ctx.lineTo(ex,ey);ctx.stroke();
+  }
+
+  // Halftone 網點
+  ctx.fillStyle=base;
+  for(let row=0;row<4;row++){
+    for(let col=0;col<7;col++){
+      const dx=(-74+col*9)*scale;
+      const dy=(44+row*7)*scale;
+      const rr=(2.8-row*.45)*scale;
+      ctx.beginPath();ctx.arc(dx,dy,Math.max(.7,rr),0,Math.PI*2);ctx.fill();
+    }
+  }
+
+  // 星芒
+  ctx.fillStyle='#ffe600';
+  for(let i=0;i<4;i++){
+    const sx=(-1+i%2*2)*(78+seeded01(e.seed+120,i)*18)*scale;
+    const sy=(-36+i*24)*scale;
+    ctx.save();ctx.translate(sx,sy);ctx.rotate(Math.PI/4);
+    ctx.fillRect(-1.7*scale,-8*scale,3.4*scale,16*scale);
+    ctx.fillRect(-8*scale,-1.7*scale,16*scale,3.4*scale);
+    ctx.restore();
+  }
+
+  ctx.restore();
+}
+function drawComicTextLayer(e,alpha,scale){
+  const lines=comicLines(e.label);
+  const baseFont=(lines.length>1?38:34)*scale;
+  const lineGap=(lines.length>1?34:0)*scale;
+  const total=(lines.length-1)*lineGap;
+  ctx.save();
+  ctx.globalAlpha=alpha;
+  // 輕微右傾
+  ctx.transform(1,0,-0.12,1,0,0);
+  ctx.textAlign='center';ctx.textBaseline='middle';
+  ctx.font=`900 ${baseFont}px Impact, "Arial Black", sans-serif`;
+  ctx.lineJoin='round';ctx.miterLimit=2;
+
+  for(let i=0;i<lines.length;i++){
+    const y=i*lineGap-total/2;
+    const label=lines[i];
+
+    // 右下黑影
+    ctx.save();ctx.translate(5*scale,6*scale);
+    ctx.strokeStyle='rgba(0,0,0,.9)';ctx.lineWidth=18*scale;ctx.strokeText(label,0,y);
+    ctx.restore();
+
+    // 黑外框
+    ctx.strokeStyle='#050505';ctx.lineWidth=18*scale;ctx.strokeText(label,0,y);
+    // 超粗白框
+    ctx.strokeStyle='#ffffff';ctx.lineWidth=12*scale;ctx.strokeText(label,0,y);
+    // 內側細黑線
+    ctx.strokeStyle='#111111';ctx.lineWidth=3.2*scale;ctx.strokeText(label,0,y);
+
+    // 黃橘漸層
+    const g=ctx.createLinearGradient(0,y-baseFont*.55,0,y+baseFont*.55);
+    g.addColorStop(0,'#fff34a');g.addColorStop(.55,'#ffd000');g.addColorStop(1,'#ff8a00');
+    ctx.fillStyle=g;ctx.fillText(label,0,y);
+
+    // 左上高光
+    ctx.save();ctx.globalAlpha=alpha*.35;ctx.strokeStyle='#ffffff';ctx.lineWidth=1.2*scale;
+    ctx.translate(-1.5*scale,-1.8*scale);ctx.strokeText(label,0,y);ctx.restore();
+  }
+
+  if(e.sub){
+    const sy=(lines.length>1?42:30)*scale;
+    ctx.font=`900 ${14*scale}px Impact, "Arial Black", sans-serif`;
+    ctx.strokeStyle='#050505';ctx.lineWidth=8*scale;ctx.strokeText(e.sub,0,sy);
+    ctx.strokeStyle='#fff';ctx.lineWidth=5*scale;ctx.strokeText(e.sub,0,sy);
+    ctx.strokeStyle='#111';ctx.lineWidth=1.5*scale;ctx.strokeText(e.sub,0,sy);
+    ctx.fillStyle='#ffe600';ctx.fillText(e.sub,0,sy);
+  }
+  ctx.restore();
+}
+function drawComicEvents(now){
+  comicEvents=comicEvents.filter(e=>now-e.start<e.duration);
+  for(const e of comicEvents){
+    const t=clamp((now-e.start)/e.duration,0,1);
+    let alpha=1,scale=1,rot=0;
+    if(t<.14){
+      const q=t/.14;
+      scale=.45+(.78*q); // .45 -> 1.23
+      rot=(-8+10*q)*Math.PI/180;
+    }else if(t<.27){
+      const q=(t-.14)/.13;
+      scale=1.23-.23*q;
+      rot=(2-2*q)*Math.PI/180;
+    }else{
+      scale=1;
+      rot=0;
+    }
+    if(t>.78)alpha=1-(t-.78)/.22;
+
+    ctx.save();
+    ctx.translate(e.x,e.y);
+    ctx.rotate(rot);
+    drawComicStarburst(e,alpha,scale*e.scale);
+    drawComicTextLayer(e,alpha,scale*e.scale);
+    ctx.restore();
+  }
+}
+function showMoving(p){
+  popups.push({x:p.position.x,y:p.position.y-24,text:'MOVING',life:35,color:'#fff600'});
+  playTone(260,.04,'square',.035);
+}
+
+function smartPick(pos){
+  const candidates=pucks.filter(selectable).map(p=>({p,d:mag(Vector.sub(p.position,pos))})).filter(o=>o.d<=HIT_RADIUS).sort((a,b)=>a.d-b.d);
+  if(!candidates.length){
+    const moving=pucks.map(p=>({p,d:mag(Vector.sub(p.position,pos))})).filter(o=>o.d<=HIT_RADIUS).sort((a,b)=>a.d-b.d)[0];
+    if(moving)showMoving(moving.p);
+    return null;
+  }
+  if(candidates.length===1)return{chosen:candidates[0].p,candidates:[candidates[0].p]};
+  const close=candidates.filter(o=>o.d-candidates[0].d<8).map(o=>o.p);
+  if(close.length<2)return{chosen:candidates[0].p,candidates:[candidates[0].p]};
+  const now=performance.now(),sameZone=Math.hypot(pos.x-lastTap.x,pos.y-lastTap.y)<22 && now-lastTap.t<650;
+  let idx=sameZone?(lastTap.index+1)%close.length:0;
+  lastTap={x:pos.x,y:pos.y,t:now,index:idx};
+  return{chosen:close[idx],candidates:close};
+}
+
+function lockSelected(p){
+  selectionMode=inContestZone(p)?'soft':'hard';
+  selectionAnchor={x:p.position.x,y:p.position.y};
+  if(selectionMode==='hard'){
+    Body.setVelocity(p,{x:0,y:0});Body.setAngularVelocity(p,0);Body.setStatic(p,true);
+  }
+}
+function clearSelection(cancelled=false){
+  if(selectedPuck && selectionMode==='hard' && selectedPuck.isStatic){
+    Body.setStatic(selectedPuck,false);Body.setVelocity(selectedPuck,{x:0,y:0});Body.setAngularVelocity(selectedPuck,0);
+  }
+  selectedPuck=null;dragStart=null;dragCurrent=null;pointerId=null;ambiguousCandidates=null;selectionMode='none';selectionAnchor=null;
+}
+function lockBreak(){
+  if(!selectedPuck||selectionMode!=='soft')return;
+  showEventText('LOCK BREAK!',selectedPuck.position.x,selectedPuck.position.y-36,1.2,selectedPuck.plugin.player,'AIM CANCELLED');
+  burst(selectedPuck.position.x,selectedPuck.position.y,'mixed',18,1.2);
+  shake=Math.max(shake,3.5);playTone(180,.08,'sawtooth',.08);vibrate(45);clearSelection(true);
+}
+
+function onPointerDown(e){
+  if(gameState!=='PLAYING'||isPaused||performance.now()-lastShotAt<SHOT_COOLDOWN)return;
+  const pos=canvasPos(e);if(pos.y<FIELD.top||pos.y>FIELD.bottom)return;
+  const pick=smartPick(pos);if(!pick)return;
+  selectedPuck=pick.chosen;ambiguousCandidates=pick.candidates;dragStart={x:selectedPuck.position.x,y:selectedPuck.position.y};dragCurrent=pos;pointerId=e.pointerId;
+  lockSelected(selectedPuck);
+  try{canvas.setPointerCapture(e.pointerId)}catch(_){}
+  playTone(720,.035,'square',.04);vibrate(10);
+}
+function onPointerMove(e){
+  if(!selectedPuck||e.pointerId!==pointerId)return;
+  dragCurrent=canvasPos(e);
+  if(ambiguousCandidates&&ambiguousCandidates.length>1){
+    const dv=Vector.sub(dragCurrent,dragStart);
+    if(mag(dv)>7){
+      const unit=Vector.normalise(dv);
+      let best=selectedPuck,bestScore=-Infinity;
+      for(const p of ambiguousCandidates){
+        const rel=Vector.sub(p.position,dragStart);
+        const score=-mag(rel)*.8+Vector.dot(rel,unit)*.35;
+        if(score>bestScore){bestScore=score;best=p}
+      }
+      if(best!==selectedPuck){
+        if(selectionMode==='hard'&&selectedPuck.isStatic)Body.setStatic(selectedPuck,false);
+        selectedPuck=best;dragStart={x:best.position.x,y:best.position.y};lockSelected(best);
+      }
+      ambiguousCandidates=null;
+    }
+  }
+}
+function onPointerUp(e){
+  if(!selectedPuck||e.pointerId!==pointerId){clearSelection(true);return}
+  const raw=Vector.sub(dragStart,dragCurrent||dragStart),dist=mag(raw);
+  const p=selectedPuck,mode=selectionMode;
+  if(mode==='hard'&&p.isStatic){Body.setStatic(p,false);Body.setVelocity(p,{x:0,y:0})}
+  if(dist>=5){
+    const dir=Vector.normalise(raw),power=clamp(dist/125,0,1);
+    p.plugin.lastShooter=shooterForPuckAtSelection(p);
+    Body.applyForce(p,p.position,Vector.mult(dir,.045+.085*power));
+    lastShotAt=performance.now();burst(p.position.x,p.position.y,p.plugin.player,8+Math.round(9*power),.8);
+    playTone(520+220*power,.09,'square',.055);vibrate(24);
+  }
+  try{canvas.releasePointerCapture(e.pointerId)}catch(_){}
+  clearSelection(false);
+}
+
+canvas.addEventListener('pointerdown',onPointerDown);
+canvas.addEventListener('pointermove',onPointerMove);
+canvas.addEventListener('pointerup',onPointerUp);
+canvas.addEventListener('pointercancel',e=>clearSelection(true));
+
+function qualityScale(){
+  const m=els.qualityMode.value;
+  if(m==='high')return 1;
+  if(m==='low')return .48;
+  return fpsEMA<44?.55:fpsEMA<52?.75:1;
+}
+function burst(x,y,color,count=10,scale=1,kind='dot'){
+  if(els.impactMode.value==='off'&&count>10)return;
+  const q=qualityScale(),n=Math.max(2,Math.round(count*q));
+  const cap=els.qualityMode.value==='low'?95:els.qualityMode.value==='high'?220:160;
+  for(let i=0;i<n && particles.length<cap;i++){
+    const a=Math.random()*Math.PI*2;
+    const speedBase=kind==='warp'?4.4:kind==='spark'?4.0:3.4;
+    const s=(1+Math.random()*speedBase)*scale;
+    const lifeBase=kind==='warp'?34:kind==='spark'?27:22;
+    particles.push({
+      x,y,vx:Math.cos(a)*s,vy:Math.sin(a)*s,
+      life:lifeBase+Math.random()*18,max:lifeBase+18,color,
+      sz:kind==='spark'?1.2+Math.random()*1.5:1.5+Math.random()*2.5,
+      kind
+    });
+  }
+}
+function impactEffect(x,y,relSpeed,a,b,suppressComic=false){
+  if(els.impactMode.value==='off')return;
+  const intensity=+els.impactIntensity.value/100;
+  if(intensity<=0)return;
+
+  const heavy=relSpeed>7, mid=relSpeed>3.5;
+  const mode=els.impactMode.value;
+  const col=(a?.plugin?.player&&b?.plugin?.player&&a.plugin.player!==b.plugin.player)
+    ?'mixed'
+    :(a?.plugin?.player||b?.plugin?.player||'mixed');
+
+  // v1.5.1：相較 v1.5.0 整體視覺強度約 +30%
+  const boost=1.30;
+  const tier=(heavy?1.55:mid?1.15:.72)*intensity*boost;
+
+  if(mode==='neon'){
+    // A｜Neon Impact：乾淨核心閃光 + 2 層霓虹環，粒子刻意少
+    shockwaves.push({x,y,r:3,life:15,max:15,color:col,width:4.2});
+    shockwaves.push({x,y,r:8,life:22,max:22,color:col,width:2.2});
+    burst(x,y,col,Math.round(6*tier),.75,'dot');
+    popups.push({x,y:y-4,text:'✦',life:12,color:'#ffffff'});
+    if(heavy)shake=Math.max(shake,1.3*intensity);
+    playTone(760+Math.min(relSpeed,10)*26,.065,'sine',.055+.03*intensity);
+  }else if(mode==='spark'){
+    // B｜Cyber Spark：方向性電火花，幾乎不使用大圓環
+    burst(x,y,col,Math.round(22*tier),1.12,'spark');
+    if(mid)burst(x,y,'mixed',Math.round(5*tier),.9,'spark');
+    if(heavy){
+      shake=Math.max(shake,2.1*intensity);
+      vibrate(Math.round(24*intensity));
+    }
+    playTone(280+Math.min(relSpeed,10)*42,.055,heavy?'sawtooth':'square',.06+.035*intensity);
+  }else{
+    // C｜Warp Burst：白核心 + Cyan/Magenta + Shockwave + Warp streak + Hit Stop
+    shockwaves.push({x,y,r:2,life:12,max:12,color:'mixed',width:5.5});
+    shockwaves.push({x,y,r:6,life:23,max:23,color:col,width:3.4});
+    if(heavy)shockwaves.push({x,y,r:12,life:29,max:29,color:'mixed',width:2.0});
+    burst(x,y,col,Math.round(25*tier),1.18,'warp');
+    burst(x,y,'mixed',Math.round(9*tier),1.42,'warp');
+    popups.push({x,y:y-2,text:'✦',life:10,color:'#ffffff'});
+    if(heavy){
+      shake=Math.max(shake,3.8*intensity);
+      hitStopUntil=Math.max(hitStopUntil,performance.now()+40);
+      vibrate(Math.round(48*intensity));
+    }else if(mid){
+      shake=Math.max(shake,1.7*intensity);
+    }
+    playTone(170+Math.min(relSpeed,10)*34,.085,heavy?'sawtooth':'square',.075+.04*intensity);
+    if(heavy)setTimeout(()=>playTone(520,.055,'square',.035),35);
+    if(heavy && !suppressComic)showEventText('WARP HIT!',x,y-28,1.0,(a?.plugin?.player||b?.plugin?.player||0));
+  }
+  if(heavy && mode!=='warp' && !suppressComic){
+    showEventText('SMASH!',x,y-26,.9,(a?.plugin?.player||b?.plugin?.player||0));
+  }
+}
+
+Events.on(engine,'collisionStart',ev=>{
+  for(const pair of ev.pairs){
+    const a=pair.bodyA,b=pair.bodyB;
+    const av=a.velocity||{x:0,y:0},bv=b.velocity||{x:0,y:0};
+    const rel=mag(Vector.sub(av,bv));
+    const x=(a.position.x+b.position.x)/2,y=(a.position.y+b.position.y)/2;
+    const postHit=a.label==='POST'||b.label==='POST';
+    const puck=a.label==='PUCK'?a:(b.label==='PUCK'?b:null);
+
+    if((a===selectedPuck||b===selectedPuck)&&selectionMode==='soft'&&rel>.7)lockBreak();
+
+    if(rel>.8){
+      impactEffect(x,y,rel,a,b,postHit);
+      if(postHit && puck && rel>2.8){
+        showEventText('CLANG!',x,y-28,.9,puck.plugin?.lastShooter||puck.plugin?.player||0);
+        // 門柱特有金屬電氣火花
+        burst(x,y,'mixed',18,1.15,'spark');
+        playTone(250+Math.min(rel,10)*26,.07,'sawtooth',.065);
+        vibrate(16);
+      }
+    }
+  }
+});
+
+
+function ownSideOf(p){
+  return p.plugin.player===1 ? p.position.y>FIELD.mid : p.position.y<FIELD.mid;
+}
+function opponentDeepEnough(p){
+  return p.plugin.player===1
+    ? p.position.y<=FIELD.mid-SCORE_DEPTH
+    : p.position.y>=FIELD.mid+SCORE_DEPTH;
+}
+function triggerBorderPulse(player){
+  // 不累加亮度，只刷新持續時間
+  borderPulse={player,life:26,max:26};
+}
+function scoreFx(p,now,scorerPlayer=p.plugin.player,kind='forward'){
+  const player=scorerPlayer;
+  const last=puckScoreCooldown.get(p.id)||0;
+  if(now-last<SCORE_COOLDOWN_MS)return;
+  puckScoreCooldown.set(p.id,now);
+
+  // combo 僅視覺/音效，不改勝負計算
+  if(comboState.player===player && now-comboState.lastAt<=COMBO_WINDOW_MS){
+    comboState.count++;
+  }else{
+    comboState={player,count:1,lastAt:now};
+  }
+  comboState.lastAt=now;
+
+  triggerBorderPulse(player);
+  shockwaves.push({x:p.position.x,y:p.position.y,r:4,life:14,max:14,color:player,width:2.2});
+  burst(p.position.x,p.position.y,player,10,0.8,'warp');
+  popups.push({x:p.position.x,y:p.position.y-18,text:'✦',life:18,color:teamColor(player)});
+  playTone(player===1?920:820,.07,'sine',.045);
+  vibrate(12);
+
+  const c=comboState.count;
+  let label='NICE SHOT!',dur=1.2;
+  if(els.combo.checked){
+    if(c===2){label='DOUBLE!';dur=1.2}
+    else if(c===3){label='TRIPLE!';dur=1.3}
+    else if(c===4){label='RAMPAGE!';dur=1.4}
+    else if(c>=5){label='GOD LIKE!';dur=1.5}
+  }
+  // 第2顆起只顯示 combo，不再重複 NICE SHOT
+  showEventText(label,180,player===1?FIELD.mid-48:FIELD.mid+48,dur,player);
+}
+function updateTerritoryScores(now){
+  for(const p of pucks){
+    const owner=p.plugin.player;
+    const state=puckTerritoryState.get(p.id)||'own';
+
+    if(ownSideOf(p)){
+      // 原本在對方領地，現在進回自己的領地：
+      // 若最後主動射擊者是對手，視為該對手成功反擊。
+      if(state==='opponent'){
+        if(p.plugin.lastShooter && p.plugin.lastShooter!==owner){
+          scoreFx(p,now,p.plugin.lastShooter,'counter');
+        }
+        puckTerritoryState.set(p.id,'own');
+      }
+      continue;
+    }
+
+    // 自己棋子進入對方領地，深入至少 SCORE_DEPTH 才正式觸發
+    if(state==='own' && opponentDeepEnough(p)){
+      puckTerritoryState.set(p.id,'opponent');
+      scoreFx(p,now,owner,'forward');
+    }
+  }
+
+  // combo 超時即重置；lastShooter 永不因時間清除
+  if(comboState.count>0 && now-comboState.lastAt>COMBO_WINDOW_MS){
+    comboState={player:0,count:0,lastAt:0};
+  }
+}
+function antiTunnelAndRescue(p,prev){
+  if(!prev)return;
+  // 中央牆 / 門柱連續穿越防護：只有中心安全通道可跨越中線
+  const crossed=(prev.y<GATE.mid&&p.position.y>=GATE.mid)||(prev.y>GATE.mid&&p.position.y<=GATE.mid);
+  if(crossed){
+    const cx=(prev.x+p.position.x)/2;
+    const legal=cx>=GATE.centerSafeLeft&&cx<=GATE.centerSafeRight;
+    if(!legal){
+      const fromTop=prev.y<GATE.mid;
+      Body.setPosition(p,{x:clamp(prev.x,SAFE.left,SAFE.right),y:fromTop?GATE.mid-28:GATE.mid+28});
+      Body.setVelocity(p,{x:p.velocity.x*.72,y:-p.velocity.y*.82});
+      impactEffect(p.position.x,p.position.y,Math.abs(p.velocity.y)+4,p,{label:'GATE'});
+    }
+  }
+  // 外框救援
+  let rescued=false,nx=p.position.x,ny=p.position.y;
+  if(nx<SAFE.left-18){nx=SAFE.left;rescued=true}
+  if(nx>SAFE.right+18){nx=SAFE.right;rescued=true}
+  if(ny<SAFE.top-18){ny=SAFE.top;rescued=true}
+  if(ny>SAFE.bottom+18){ny=SAFE.bottom;rescued=true}
+  if(rescued){
+    Body.setPosition(p,{x:nx,y:ny});Body.setVelocity(p,{x:-p.velocity.x*.55,y:-p.velocity.y*.55});
+    popups.push({x:nx,y:ny,text:'WARP SAVE',life:38,color:'#ff385c'});burst(nx,ny,'mixed',14,1);playTone(320,.08,'sawtooth',.05);
+  }
+}
+function capSpeed(p){
+  const s=mag(p.velocity);if(s>MAX_SPEED)Body.setVelocity(p,Vector.mult(Vector.normalise(p.velocity),MAX_SPEED));
+}
+
+function runAI(now){
+  if(!isAI||gameState!=='PLAYING'||isPaused||now-lastAIShot<820)return;
+  const candidates=pucks.filter(p=>p.position.y<FIELD.mid&&mag(p.velocity)<SELECT_SPEED);
+  if(!candidates.length)return;
+  const p=candidates[Math.floor(Math.random()*candidates.length)];
+  const target={x:180+(Math.random()-.5)*70,y:390};
+  const dir=Vector.normalise(Vector.sub(target,p.position));
+  p.plugin.lastShooter=2;
+  Body.applyForce(p,p.position,Vector.mult(dir,.07+Math.random()*.04));
+  lastAIShot=now;burst(p.position.x,p.position.y,2,8,.7);
+}
+
+function updateParticles(){
+  for(const p of particles){p.x+=p.vx;p.y+=p.vy;p.vx*=.94;p.vy*=.94;p.life--}
+  particles=particles.filter(p=>p.life>0);
+  for(const s of shockwaves){s.r+=4.8;s.life--}
+  shockwaves=shockwaves.filter(s=>s.life>0);
+  for(const p of popups){p.y-=.4;p.life--}
+  popups=popups.filter(p=>p.life>0);
+}
+
+function drawImageCover(img,x,y,w,h){
+  const ir=img.width/img.height,br=w/h;let sx=0,sy=0,sw=img.width,sh=img.height;
+  if(ir>br){sw=img.height*br;sx=(img.width-sw)/2}else{sh=img.width/br;sy=(img.height-sh)/2}
+  ctx.drawImage(img,sx,sy,sw,sh,x,y,w,h)
+}
+function teamColor(v){
+  if(v===1||v==='1')return'#00f3ff';
+  if(v===2||v==='2')return'#ff0055';
+  return'#fff';
+}
+function drawArenaFallback(){
+  ctx.save();ctx.strokeStyle='#00f3ff';ctx.lineWidth=2;ctx.shadowColor='#00f3ff';ctx.shadowBlur=10;ctx.strokeRect(8,58,344,524);
+  ctx.fillStyle='rgba(8,12,22,.92)';ctx.fillRect(10,307,110,26);ctx.fillRect(240,307,110,26);
+  ctx.fillStyle='#182032';ctx.fillRect(122,291,32,58);ctx.fillRect(206,291,32,58);
+  ctx.restore();
+}
+function drawPuck(p){
+  const pl=p.plugin.player,c=teamColor(pl),img=puckImages[pl];
+  const s=mag(p.velocity),trail=(+els.trailIntensity.value/100);
+  if(trail>0&&s>.35){
+    const u=Vector.normalise(p.velocity),len=Math.min(54,s*3.2)*trail;
+    const g=ctx.createLinearGradient(p.position.x,p.position.y,p.position.x-u.x*len,p.position.y-u.y*len);
+    g.addColorStop(0,c);g.addColorStop(1,'rgba(0,0,0,0)');
+    ctx.save();ctx.strokeStyle=g;ctx.lineWidth=4+4*trail;ctx.shadowColor=c;ctx.shadowBlur=12*trail;
+    ctx.beginPath();ctx.moveTo(p.position.x,p.position.y);ctx.lineTo(p.position.x-u.x*len,p.position.y-u.y*len);ctx.stroke();ctx.restore();
+  }
+  ctx.save();ctx.beginPath();ctx.arc(p.position.x,p.position.y,14,0,Math.PI*2);ctx.clip();
+  if(img)drawImageCover(img,p.position.x-14,p.position.y-14,28,28);else{ctx.fillStyle=pl===1?'#067cff':'#d9003d';ctx.fillRect(p.position.x-14,p.position.y-14,28,28)}
+  ctx.restore();
+  ctx.save();ctx.beginPath();ctx.arc(p.position.x,p.position.y,14,0,Math.PI*2);ctx.strokeStyle=c;ctx.lineWidth=3;ctx.shadowColor=c;ctx.shadowBlur=12;ctx.stroke();ctx.restore();
+
+  // 可發射提示：極淡呼吸光
+  if(!selectedPuck&&selectable(p)&&gameState==='PLAYING'&&!isPaused){
+    const a=.12+.08*Math.sin(performance.now()/260);
+    ctx.save();ctx.strokeStyle=pl===1?`rgba(0,243,255,${a})`:`rgba(255,0,85,${a})`;ctx.lineWidth=2;ctx.beginPath();ctx.arc(p.position.x,p.position.y,18,0,Math.PI*2);ctx.stroke();ctx.restore();
+  }
+}
+
+function drawSelection(){
+  if(!selectedPuck)return;
+  const x=selectedPuck.position.x,y=selectedPuck.position.y,c=teamColor(selectedPuck.plugin.player);
+  const amp=+els.selectIntensity.value/100,t=performance.now()/180;
+  if(els.selectEffect.value!=='none'&&amp>0){
+    ctx.save();ctx.strokeStyle=c;ctx.shadowColor=c;ctx.shadowBlur=14*amp;ctx.lineWidth=2.5;
+    if(els.selectEffect.value==='ac'){
+      ctx.beginPath();ctx.arc(x,y,21+2*Math.sin(t),0,Math.PI*2);ctx.stroke();
+      for(let i=0;i<4;i++){const a=i*Math.PI/2+t*.18;ctx.beginPath();ctx.arc(x,y,25,a,a+.42);ctx.stroke()}
+    }else{
+      for(let r=20;r<=30;r+=5){ctx.globalAlpha=.45;ctx.beginPath();ctx.arc(x,y,r+(Math.sin(t+r)*1.5),0,Math.PI*2);ctx.stroke()}
+    }
+    ctx.globalAlpha=1;
+    // C: 四角鎖定
+    const q=24,L=7;ctx.beginPath();
+    ctx.moveTo(x-q,y-q+L);ctx.lineTo(x-q,y-q);ctx.lineTo(x-q+L,y-q);
+    ctx.moveTo(x+q-L,y-q);ctx.lineTo(x+q,y-q);ctx.lineTo(x+q,y-q+L);
+    ctx.moveTo(x-q,y+q-L);ctx.lineTo(x-q,y+q);ctx.lineTo(x-q+L,y+q);
+    ctx.moveTo(x+q-L,y+q);ctx.lineTo(x+q,y+q);ctx.lineTo(x+q,y+q-L);ctx.stroke();ctx.restore();
+  }
+  // 虛擬拉伸殘影
+  if(dragCurrent){
+    ctx.save();ctx.globalAlpha=.35;ctx.strokeStyle=c;ctx.lineWidth=5;ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(dragCurrent.x,dragCurrent.y);ctx.stroke();
+    ctx.beginPath();ctx.arc(dragCurrent.x,dragCurrent.y,12,0,Math.PI*2);ctx.stroke();ctx.restore();
+  }
+}
+function drawAim(){
+  if(!selectedPuck||!dragCurrent||els.aimMode.value==='off')return;
+  const raw=Vector.sub(dragStart,dragCurrent),dist=mag(raw);if(dist<3)return;
+  const dir=Vector.normalise(raw),power=clamp(dist/125,0,1),start={x:selectedPuck.position.x,y:selectedPuck.position.y};
+  const end={x:start.x+dir.x*(45+95*power),y:start.y+dir.y*(45+95*power)};
+  ctx.save();ctx.strokeStyle='#ffe600';ctx.fillStyle='#ffe600';ctx.shadowColor='#ffe600';ctx.shadowBlur=10;
+  if(els.aimMode.value==='simple'){
+    ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(start.x,start.y);ctx.lineTo(end.x,end.y);ctx.stroke();
+  }else{
+    ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(start.x,start.y);ctx.lineTo(end.x,end.y);ctx.stroke();
+    const perp={x:-dir.y,y:dir.x};
+    for(let i=1;i<=6;i++){
+      const lit=i/6<=power+.04,t=.16+i*.11,px=start.x+(end.x-start.x)*t,py=start.y+(end.y-start.y)*t;
+      ctx.globalAlpha=lit?1:.22;ctx.fillRect(px+perp.x*-4-3,py+perp.y*-4-2,8,4);
+    }
+    ctx.globalAlpha=1;const ah=10;
+    ctx.beginPath();ctx.moveTo(end.x,end.y);ctx.lineTo(end.x-dir.x*ah+perp.x*6,end.y-dir.y*ah+perp.y*6);
+    ctx.lineTo(end.x-dir.x*ah-perp.x*6,end.y-dir.y*ah-perp.y*6);ctx.closePath();ctx.fill();
+    ctx.font='900 12px monospace';ctx.fillText(`POWER ${Math.round(power*100)}%`,start.x+12,start.y-22);
+  }
+  ctx.restore();
+}
+
+function drawEffects(){
+  for(const s of shockwaves){
+    const alpha=s.life/s.max;
+    ctx.save();
+    ctx.strokeStyle=s.color==='mixed'?'#fff':teamColor(s.color);
+    ctx.globalAlpha=alpha;
+    ctx.lineWidth=s.width||3;
+    ctx.shadowBlur=16;
+    ctx.shadowColor=ctx.strokeStyle;
+    ctx.beginPath();ctx.arc(s.x,s.y,s.r,0,Math.PI*2);ctx.stroke();
+    ctx.restore();
+  }
+  for(const p of particles){
+    const alpha=Math.min(1,p.life/15);
+    const c=p.color==='mixed'?(Math.random()>.5?'#00f3ff':'#ff0055'):teamColor(p.color);
+    ctx.save();
+    ctx.globalAlpha=alpha;
+    ctx.strokeStyle=c;ctx.fillStyle=c;ctx.shadowColor=c;
+    ctx.shadowBlur=p.kind==='warp'?12:p.kind==='spark'?9:6;
+    if(p.kind==='spark'||p.kind==='warp'){
+      const len=p.kind==='warp'?3.4:2.2;
+      ctx.lineWidth=p.kind==='warp'?2.4:1.7;
+      ctx.beginPath();
+      ctx.moveTo(p.x,p.y);
+      ctx.lineTo(p.x-p.vx*len,p.y-p.vy*len);
+      ctx.stroke();
+    }else{
+      ctx.fillRect(p.x,p.y,p.sz,p.sz);
+    }
+    ctx.restore();
+  }
+  for(const p of popups){
+    ctx.save();ctx.globalAlpha=Math.min(1,p.life/12);ctx.fillStyle=p.color;ctx.strokeStyle='#000';ctx.lineWidth=3;ctx.font='900 12px monospace';ctx.strokeText(p.text,p.x-24,p.y);ctx.fillText(p.text,p.x-24,p.y);ctx.restore();
+  }
+}
+
+function draw(){
+  ctx.clearRect(0,0,360,640);
+  const offsetX=shake?(Math.random()-.5)*shake:0,offsetY=shake?(Math.random()-.5)*shake:0;
+  ctx.save();ctx.translate(offsetX,offsetY);
+  ctx.fillStyle='#000';ctx.fillRect(0,0,360,640);
+  if(bgImage)drawImageCover(bgImage,0,0,360,640);
+
+  // 輕微網格
+  ctx.save();ctx.strokeStyle='rgba(0,243,255,.07)';ctx.lineWidth=1;
+  for(let x=20;x<360;x+=20){ctx.beginPath();ctx.moveTo(x,60);ctx.lineTo(x,580);ctx.stroke()}
+  for(let y=80;y<580;y+=20){ctx.beginPath();ctx.moveTo(10,y);ctx.lineTo(350,y);ctx.stroke()}
+  ctx.restore();
+
+  if(els.arenaTheme.value==='cyber'&&cyberOverlayReady)ctx.drawImage(cyberOverlayImage,0,0,360,640);else drawArenaFallback();
+
+  if(borderPulse.life>0){
+    const a=borderPulse.life/borderPulse.max;
+    const c=teamColor(borderPulse.player);
+    ctx.save();
+    ctx.globalAlpha=Math.min(.92,a*.92);
+    ctx.strokeStyle=c;ctx.shadowColor=c;ctx.shadowBlur=24+18*a;ctx.lineWidth=5+3*a;
+    ctx.strokeRect(3,3,354,634);
+    ctx.beginPath();
+    ctx.moveTo(3,320);ctx.lineTo(31,320);
+    ctx.moveTo(329,320);ctx.lineTo(357,320);
+    ctx.stroke();
+    ctx.restore();
+    borderPulse.life--;
+  }
+
+  for(const p of pucks)drawPuck(p);
+  drawSelection();drawAim();drawEffects();
+  drawComicEvents(performance.now());
+  ctx.restore();
+  shake*=.82;if(shake<.1)shake=0;
+}
+
+function frame(now){
+  const rawDt=Math.min(32,now-lastFrame||16.67);lastFrame=now;
+  fpsEMA=fpsEMA*.92+(1000/rawDt)*.08;
+  if(gameState==='PLAYING'&&!isPaused&&now>=hitStopUntil){
+    if(els.win.value==='time'){timer-=rawDt/1000;if(timer<0)timer=0;setTimerText(Math.ceil(timer))}
+    const sub=3,dt=rawDt/sub;
+    for(let i=0;i<sub;i++){
+      prevPositions.clear();for(const p of pucks)prevPositions.set(p.id,{x:p.position.x,y:p.position.y});
+      Engine.update(engine,dt);
+      for(const p of pucks){capSpeed(p);antiTunnelAndRescue(p,prevPositions.get(p.id))}
+    }
+    runAI(now);
+    updateTerritoryScores(now);
+    updateCount();
+    checkWin();
+    updateParticles();
+  }
+  draw();requestAnimationFrame(frame);
+}
+
+els.fab.addEventListener('click',toggleMenu);
+els.start.addEventListener('click',()=>{
+  if(gameState==='GAMEOVER'||gameState==='MENU'){
+    startNewRoundFromOverlay();
+  }
+});
+els.reset.addEventListener('click',()=>{
+  saveSettings();
+  closeSettingsPanel();
+  resetGame();
+});
+els.defaults.addEventListener('click',restoreDefaults);
+
+for(const el of [els.mode,els.win,els.puckNum,els.audio,els.selectEffect,els.selectIntensity,els.trailIntensity,els.aimMode,els.impactMode,els.impactIntensity,els.qualityMode,els.comic,els.combo,els.comicLevel,els.arenaTheme]){
+  el.addEventListener('change',()=>{syncOutputs();saveSettings();updateRoles()});
+  el.addEventListener('input',()=>{syncOutputs();saveSettings()});
+}
+els.bgUpload.addEventListener('click',()=>els.bgFile.click());els.p1Upload.addEventListener('click',()=>els.p1File.click());els.p2Upload.addEventListener('click',()=>els.p2File.click());
+els.bgFile.addEventListener('change',e=>setAsset('bg',e.target.files[0]));els.p1File.addEventListener('change',e=>setAsset('p1',e.target.files[0]));els.p2File.addEventListener('change',e=>setAsset('p2',e.target.files[0]));
+els.bgReset.addEventListener('click',()=>resetAsset('bg'));els.p1Reset.addEventListener('click',()=>resetAsset('p1'));els.p2Reset.addEventListener('click',()=>resetAsset('p2'));
+
+loadSettings();loadCyberOverlay();restorePersistedAssets();resetGame();requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>
