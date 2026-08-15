@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#080810">
+<title>Cyberpunk Sling Puck v1.3.1</title>
+<style>
+:root{
+  --cyan:#00f3ff;
+  --pink:#ff0055;
+  --yellow:#ffe600;
+  --bg:#080810;
+  --panel:rgba(18,18,36,.94);
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;width:100%;height:100%;overflow:hidden;background:var(--bg);font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,"Noto Sans TC",monospace;color:var(--cyan)}
+html{height:100%;height:100dvh;-webkit-text-size-adjust:100%;text-size-adjust:100%}
+body{height:100dvh;display:flex;align-items:center;justify-content:center;padding:max(6px,env(safe-area-inset-top)) max(6px,env(safe-area-inset-right)) max(6px,env(safe-area-inset-bottom)) max(6px,env(safe-area-inset-left));touch-action:manipulation}
+#app{position:relative;height:min(100%,853px);aspect-ratio:9/16;width:auto;max-width:100%}
+#canvas-container{position:absolute;inset:0;border:2px solid var(--cyan);box-shadow:0 0 20px rgba(0,243,255,.75);background:var(--bg);overflow:hidden}
+canvas{display:block;width:100%;height:100%;touch-action:none}
+.ui-panel{position:absolute;top:10px;left:10px;right:10px;display:grid;grid-template-columns:1fr auto 1fr;align-items:center;background:rgba(0,0,0,.68);padding:8px 10px;border:1px solid rgba(0,243,255,.4);border-radius:8px;pointer-events:none;font-weight:900;z-index:5;text-shadow:0 0 8px currentColor}
+.ui-panel>div:last-child{text-align:right}.p1-ui{color:var(--pink)}.p2-ui{color:var(--cyan)}
+#fab-btn{position:absolute;top:44%;right:12px;width:56px;height:56px;background:rgba(0,243,255,.16);border:2px solid var(--cyan);border-radius:50%;color:var(--cyan);font-size:22px;display:flex;justify-content:center;align-items:center;cursor:pointer;z-index:15;box-shadow:0 0 12px var(--cyan);transition:.2s transform,.2s background}
+#fab-btn:active{transform:scale(.93);background:rgba(0,243,255,.35)}
+.menu{position:absolute;left:10px;right:10px;bottom:10px;max-height:48%;overflow-y:auto;-webkit-overflow-scrolling:touch;touch-action:pan-y;background:var(--panel);padding:12px;border:1px solid var(--pink);box-shadow:0 0 18px rgba(255,0,85,.45);border-radius:10px;display:grid;grid-template-columns:1fr 1fr;gap:9px;z-index:12;transition:.22s ease}
+.menu.hidden-menu{opacity:0;pointer-events:none;transform:translateY(24px)}
+.control{display:flex;flex-direction:column;gap:4px}.control.full{grid-column:1/-1}
+label{font-size:13px;font-weight:800;color:var(--cyan)}
+select,input[type=number]{width:100%;min-height:44px;background:#080810;color:var(--cyan);border:1px solid var(--cyan);border-radius:5px;padding:4px 6px;font:inherit}
+.toggle-row{display:flex;align-items:center;justify-content:space-between;min-height:44px;border:1px solid rgba(0,243,255,.5);border-radius:5px;padding:0 8px}.toggle-row input{width:20px;height:20px;accent-color:var(--pink)}
+button.action-btn{min-height:46px;background:var(--pink);color:#fff;border:0;border-radius:6px;padding:8px 12px;font-weight:900;font:inherit;cursor:pointer;box-shadow:0 0 10px rgba(255,0,85,.8)}
+button.action-btn:active{transform:scale(.98)}
+.overlay{position:absolute;inset:0;background:rgba(8,8,16,.88);display:flex;flex-direction:column;justify-content:center;align-items:center;padding:28px;z-index:20;backdrop-filter:blur(4px)}
+.overlay h1{font-size:clamp(28px,9vw,48px);color:var(--pink);text-shadow:0 0 14px var(--pink);margin:8px 0;text-align:center;line-height:1.1}.overlay p{font-size:16px;color:var(--cyan);margin:8px 0 24px;text-align:center;line-height:1.5;white-space:pre-line}.overlay .action-btn{min-width:150px;min-height:48px;font-size:18px}.hidden{display:none!important}
+.hint{position:absolute;top:58px;left:50%;transform:translateX(-50%);z-index:4;font-size:11px;color:rgba(255,255,255,.7);pointer-events:none;white-space:nowrap}
+#bg-file{position:absolute;width:1px;height:1px;opacity:0;pointer-events:none}
+.bg-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.bg-btn{min-height:44px;border:1px solid var(--cyan);border-radius:6px;background:rgba(0,243,255,.1);color:var(--cyan);font:inherit;font-weight:900;padding:8px;cursor:pointer}
+.bg-btn.danger{border-color:var(--pink);color:#fff;background:rgba(255,0,85,.18)}
+.bg-status{font-size:11px;color:rgba(255,255,255,.7);margin-top:4px;line-height:1.35}
+@media (max-height:700px){.menu{max-height:52%;padding:9px;gap:7px}.hint{display:none}.ui-panel{top:7px}.control{gap:3px}label{font-size:11px}select,input[type=number],.toggle-row,.bg-btn{min-height:40px}button.action-btn{min-height:42px}}
+@media (orientation:landscape) and (max-height:500px){#app{height:100%;max-height:none}.menu{max-height:72%}}
+</style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
+</head>
+<body>
+<div id="app">
+  <div id="canvas-container">
+    <div class="ui-panel">
+      <div class="p1-ui">P1: <span id="p1-count">5</span></div>
+      <div>TIME: <span id="timer-display">--</span></div>
+      <div class="p2-ui">P2: <span id="p2-count">5</span></div>
+    </div>
+    <div class="hint">拖曳棋子後放開 · 黃線＝彈射方向</div>
+    <button id="fab-btn" type="button" aria-label="開啟設定">⚙</button>
+    <div id="game-overlay" class="overlay">
+      <h1 id="overlay-title">CYBERPUNK SLING</h1>
+      <p id="overlay-desc">準備對戰，點擊開始遊戲</p>
+      <button id="start-btn" class="action-btn" type="button">開始遊戲</button>
+    </div>
+    <canvas id="gameCanvas" width="360" height="640"></canvas>
+    <div id="control-menu" class="menu">
+      <div class="control">
+        <label for="mode-select">模式</label>
+        <select id="mode-select"><option value="pvp">雙人同屏 PvP</option><option value="ai">單人 VS AI</option></select>
+      </div>
+      <div class="control">
+        <label for="win-select">勝負</label>
+        <select id="win-select"><option value="clear">清空制 Clear</option><option value="time">60 秒計時</option></select>
+      </div>
+      <div class="control">
+        <label for="puck-num">棋子數</label>
+        <input type="number" id="puck-num" value="5" min="3" max="8" inputmode="numeric">
+      </div>
+      <div class="control">
+        <label>音效 / 震動</label>
+        <div class="toggle-row"><span>ON</span><input type="checkbox" id="audio-toggle" checked></div>
+      </div>
+      <div class="control full">
+        <label>球場底圖</label>
+        <input id="bg-file" type="file" accept="image/*">
+        <div class="bg-actions">
+          <button id="bg-upload-btn" class="bg-btn" type="button">選照片替換</button>
+          <button id="bg-reset-btn" class="bg-btn danger" type="button">恢復預設</button>
+        </div>
+        <div id="bg-status" class="bg-status">目前：預設賽博龐克底圖</div>
+      </div>
+      <div class="control full"><button id="reset-btn" class="action-btn" type="button">重新開始</button></div>
+    </div>
+  </div>
+</div>
+<script>
+(() => {
+'use strict';
+const { Engine, Composite, Bodies, Vector, Body, Runner, Events } = Matter;
+const engine = Engine.create({ gravity: { x: 0, y: 0 } });
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+const els = {
+  menu: document.getElementById('control-menu'), fab: document.getElementById('fab-btn'),
+  overlay: document.getElementById('game-overlay'), title: document.getElementById('overlay-title'),
+  desc: document.getElementById('overlay-desc'), start: document.getElementById('start-btn'),
+  reset: document.getElementById('reset-btn'), mode: document.getElementById('mode-select'),
+  win: document.getElementById('win-select'), puckNum: document.getElementById('puck-num'),
+  audio: document.getElementById('audio-toggle'), timer: document.getElementById('timer-display'),
+  p1: document.getElementById('p1-count'), p2: document.getElementById('p2-count'),
+  bgFile: document.getElementById('bg-file'), bgUpload: document.getElementById('bg-upload-btn'),
+  bgReset: document.getElementById('bg-reset-btn'), bgStatus: document.getElementById('bg-status')
+};
+let pucks = [], selectedPuck = null, dragStart = null, dragCurrent = null;
+let isAI = false, gameState = 'MENU', timer = 60, timerInterval = null;
+let lastAIShot = 0, countdownToken = 0;
+let audioCtx = null;
+let bgImage = null;
+const DEFAULT_BG_URL = 'watermarked_00.png';
+let usingCustomBackground = false;
+let defaultBgLoadToken = 0;
+function ensureAudio(){ if(!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)(); if(audioCtx.state==='suspended') audioCtx.resume(); }
+function playSfx(freq,duration=.08){ if(!els.audio.checked) return; try{ ensureAudio(); const osc=audioCtx.createOscillator(), gain=audioCtx.createGain(); osc.connect(gain); gain.connect(audioCtx.destination); osc.type='square'; osc.frequency.value=freq; gain.gain.setValueAtTime(.07,audioCtx.currentTime); gain.gain.exponentialRampToValueAtTime(.001,audioCtx.currentTime+duration); osc.start(); osc.stop(audioCtx.currentTime+duration); }catch(_){} }
+function vibrate(ms=25){ if(els.audio.checked && navigator.vibrate) navigator.vibrate(ms); }
+function clamp(v,min,max){ return Math.max(min,Math.min(max,v)); }
+function toggleMenu(){ els.menu.classList.toggle('hidden-menu'); }
+function loadDefaultBackground(){
+  const token=++defaultBgLoadToken;
+  usingCustomBackground=false;
+  bgImage=null;
+  els.bgStatus.textContent='預設底圖載入中…';
+  const img=new Image();
+  let settled=false;
+  const finish=(ok)=>{
+    if(settled || token!==defaultBgLoadToken) return;
+    settled=true;
+    if(ok){
+      bgImage=img;
+      els.bgStatus.textContent='目前：watermarked_00.png';
+    }else{
+      bgImage=null;
+      els.bgStatus.textContent='預設底圖無法載入｜目前：黑色底圖';
+    }
+  };
+  img.onload=()=>finish(true);
+  img.onerror=()=>finish(false);
+  img.src=DEFAULT_BG_URL + '?v=1.3';
+  setTimeout(()=>finish(false),2500);
+}
+function setBackgroundFile(file){
+  if(!file || !file.type.startsWith('image/')) return;
+  ++defaultBgLoadToken;
+  const reader=new FileReader();
+  reader.onload=()=>{
+    const img=new Image();
+    img.onload=()=>{usingCustomBackground=true;bgImage=img;els.bgStatus.textContent=`目前：${file.name}`;playSfx(620,.08);};
+    img.onerror=()=>{usingCustomBackground=false;bgImage=null;els.bgStatus.textContent='自訂底圖載入失敗｜目前：黑色底圖';};
+    img.src=reader.result;
+  };
+  reader.readAsDataURL(file);
+}
+function resetBackground(){els.bgFile.value='';loadDefaultBackground();}
+function drawImageCover(img,x,y,w,h){
+  const ir=img.width/img.height, br=w/h; let sx=0,sy=0,sw=img.width,sh=img.height;
+  if(ir>br){sw=img.height*br;sx=(img.width-sw)/2;}else{sh=img.width/br;sy=(img.height-sh)/2;}
+  ctx.drawImage(img,sx,sy,sw,sh,x,y,w,h);
+}
+
+function setupWallsAndObstacles(){
+  Composite.clear(engine.world, false, true); pucks=[];
+  const wall={isStatic:true,restitution:.92,friction:0,label:'WALL'};
+  const bodies=[
+    Bodies.rectangle(180,10,360,20,wall), Bodies.rectangle(180,630,360,20,wall),
+    Bodies.rectangle(10,320,20,620,wall), Bodies.rectangle(350,320,20,620,wall),
+    Bodies.rectangle(67.5,320,95,18,{...wall,label:'GATE'}),
+    Bodies.rectangle(292.5,320,95,18,{...wall,label:'GATE'}),
+    Bodies.circle(137,320,12,{...wall,label:'POST'}), Bodies.circle(223,320,12,{...wall,label:'POST'})
+  ];
+  Composite.add(engine.world,bodies);
+}
+function spawnPucks(count){
+  const cols = Math.min(count,5), rows = Math.ceil(count/cols), xGap=52, yGap=36;
+  for(let i=0;i<count;i++){
+    const row=Math.floor(i/cols), col=i%cols, colsThis=Math.min(cols,count-row*cols);
+    const startX=180-((colsThis-1)*xGap)/2, x=startX+col*xGap;
+    const p1=Bodies.circle(x,190-row*yGap,14,{restitution:.9,friction:.01,frictionAir:.018,label:'PUCK',player:1});
+    const p2=Bodies.circle(x,450+row*yGap,14,{restitution:.9,friction:.01,frictionAir:.018,label:'PUCK',player:2});
+    pucks.push(p1,p2);
+  }
+  Composite.add(engine.world,pucks);
+}
+function sideCounts(){ let top=0,bottom=0; for(const p of pucks){ if(p.position.y<320) top++; else bottom++; } return {top,bottom}; }
+function updateCount(){ const {top,bottom}=sideCounts(); els.p1.textContent=top; els.p2.textContent=bottom; }
+function resetGame(){
+  clearInterval(timerInterval); countdownToken++; gameState='MENU'; selectedPuck=null;
+  const count=clamp(parseInt(els.puckNum.value,10)||5,3,8); els.puckNum.value=count;
+  isAI=els.mode.value==='ai'; setupWallsAndObstacles(); spawnPucks(count); updateCount();
+  els.overlay.classList.remove('hidden'); els.title.textContent='CYBERPUNK SLING';
+  els.desc.textContent=isAI?'P1 對戰 AI\n把自己半場的棋子全部彈到對方半場':'雙人同屏對戰\n把自己半場的棋子全部彈到對方半場';
+  els.start.textContent='開始遊戲'; els.start.classList.remove('hidden'); els.timer.textContent='--';
+}
+function startCountdown(){
+  if(gameState==='COUNTDOWN') return; ensureAudio(); gameState='COUNTDOWN'; els.menu.classList.add('hidden-menu');
+  const token=++countdownToken; let n=3; els.start.classList.add('hidden'); els.desc.textContent='GET READY...'; els.title.textContent=n; playSfx(440,.1);
+  const tick=()=>{ if(token!==countdownToken) return; n--; if(n>0){els.title.textContent=n;playSfx(440,.1);setTimeout(tick,700);} else {els.title.textContent='GO!';playSfx(880,.18);setTimeout(()=>{if(token!==countdownToken)return;els.overlay.classList.add('hidden');els.start.classList.remove('hidden');startGameplay();},350);} };
+  setTimeout(tick,700);
+}
+function startGameplay(){ gameState='PLAYING'; if(els.win.value==='time'){ timer=60; els.timer.textContent=timer; timerInterval=setInterval(()=>{ if(gameState!=='PLAYING') return; timer--; els.timer.textContent=timer; if(timer<=0) checkWinCondition(true); },1000); } else els.timer.textContent='∞'; }
+function checkWinCondition(isTimeUp=false){
+  if(gameState!=='PLAYING') return; const {top,bottom}=sideCounts(); let winner=null;
+  if(els.win.value==='clear'){
+    if(top===0 && bottom===0) winner='DRAW';
+    else if(top===0) winner='P1';
+    else if(bottom===0) winner=isAI?'AI':'P2';
+  } else if(isTimeUp){
+    if(top<bottom) winner='P1'; else if(bottom<top) winner=isAI?'AI':'P2'; else winner='DRAW';
+  }
+  if(winner) triggerGameOver(winner);
+}
+function triggerGameOver(winner){ gameState='GAMEOVER'; clearInterval(timerInterval); playSfx(winner==='DRAW'?520:760,.35); vibrate(70); els.overlay.classList.remove('hidden'); els.title.textContent=winner==='DRAW'?'DRAW':'GAME OVER'; els.desc.textContent=winner==='DRAW'?'雙方平手！':`獲勝者：${winner}`; els.start.textContent='再玩一次'; els.start.classList.remove('hidden'); }
+function canvasPos(e){
+  const rect=canvas.getBoundingClientRect(); const src=e.touches?.[0] || e.changedTouches?.[0] || e;
+  return {x:(src.clientX-rect.left)*(canvas.width/rect.width), y:(src.clientY-rect.top)*(canvas.height/rect.height)};
+}
+function puckIsSelectable(p){
+  if(Vector.magnitude(p.velocity)>.45) return false;
+  if(isAI) return p.position.y<320;
+  return true;
+}
+function handleDragStart(e){
+  if(gameState!=='PLAYING') return; const pos=canvasPos(e); let best=null,bestD=28;
+  for(const puck of pucks){ const d=Vector.magnitude(Vector.sub(puck.position,pos)); if(d<bestD && puckIsSelectable(puck)){best=puck;bestD=d;} }
+  if(best){selectedPuck=best;dragStart={x:best.position.x,y:best.position.y};dragCurrent=pos;}
+}
+function handleDragMove(e){ if(selectedPuck) dragCurrent=canvasPos(e); }
+function handleDragEnd(e){
+  if(!selectedPuck||!dragStart||!dragCurrent){ selectedPuck=dragStart=dragCurrent=null; return; }
+  const raw=Vector.sub(dragStart,dragCurrent), dist=Vector.magnitude(raw); if(dist>8){ const dir=Vector.normalise(raw); const strength=Math.min(dist,125)/125; Body.applyForce(selectedPuck,selectedPuck.position,Vector.mult(dir,.045+.085*strength)); playSfx(520,.12); vibrate(30); }
+  selectedPuck=dragStart=dragCurrent=null;
+}
+function runAI(now){
+  if(!isAI||gameState!=='PLAYING'||now-lastAIShot<900) return;
+  const candidates=pucks.filter(p=>p.position.y>320 && Vector.magnitude(p.velocity)<.18); if(!candidates.length) return;
+  if(Math.random()<.035){
+    const p=candidates[Math.floor(Math.random()*candidates.length)];
+    const target={x:180+(Math.random()-.5)*58,y:245}; const dir=Vector.normalise(Vector.sub(target,p.position));
+    Body.applyForce(p,p.position,Vector.mult(dir,.075+Math.random()*.025)); lastAIShot=now; playSfx(470,.08);
+  }
+}
+Events.on(engine,'collisionStart',ev=>{ if(gameState==='PLAYING' && ev.pairs.some(pair=>!pair.bodyA.isStatic||!pair.bodyB.isStatic)) playSfx(300,.035); });
+els.fab.addEventListener('click',toggleMenu); els.reset.addEventListener('click',resetGame);
+els.bgUpload.addEventListener('click',()=>els.bgFile.click());
+els.bgFile.addEventListener('change',()=>setBackgroundFile(els.bgFile.files?.[0]));
+els.bgReset.addEventListener('click',resetBackground); els.start.addEventListener('click',()=> gameState==='GAMEOVER'?resetGame():startCountdown());
+loadDefaultBackground();
+for(const id of ['mode-select','win-select','puck-num']) document.getElementById(id).addEventListener('change',()=>{if(gameState==='MENU') resetGame();});
+canvas.addEventListener('pointerdown',e=>{e.preventDefault();canvas.setPointerCapture?.(e.pointerId);handleDragStart(e);});
+canvas.addEventListener('pointermove',e=>{e.preventDefault();handleDragMove(e);});
+canvas.addEventListener('pointerup',e=>{e.preventDefault();handleDragEnd(e);});
+canvas.addEventListener('pointercancel',handleDragEnd);
+const runner=Runner.create(); Runner.run(runner,engine);
+function drawArena(){
+  ctx.fillStyle='#080810';ctx.fillRect(0,0,360,640);
+  if(bgImage){ctx.save();ctx.globalAlpha=.72;drawImageCover(bgImage,0,0,360,640);ctx.restore();ctx.fillStyle='rgba(8,8,16,.42)';ctx.fillRect(0,0,360,640);}
+  ctx.strokeStyle='rgba(0,243,255,.10)';ctx.lineWidth=1;
+  for(let y=80;y<640;y+=40){ctx.beginPath();ctx.moveTo(10,y);ctx.lineTo(350,y);ctx.stroke();}
+  for(let x=30;x<360;x+=40){ctx.beginPath();ctx.moveTo(x,10);ctx.lineTo(x,630);ctx.stroke();}
+  ctx.shadowBlur=12;ctx.shadowColor='#ff0055';ctx.strokeStyle='rgba(255,0,85,.72)';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(10,320);ctx.lineTo(350,320);ctx.stroke();ctx.shadowBlur=0;
+  ctx.fillStyle='rgba(255,0,85,.08)';ctx.fillRect(10,10,340,310);ctx.fillStyle='rgba(0,243,255,.06)';ctx.fillRect(10,320,340,310);
+}
+function drawBodies(){
+  for(const b of Composite.allBodies(engine.world)){
+    if(b.circleRadius){
+      ctx.beginPath();ctx.arc(b.position.x,b.position.y,b.circleRadius,0,Math.PI*2);
+      if(b.isStatic){ctx.fillStyle='#15152b';ctx.shadowColor='#9d6cff';ctx.shadowBlur=10;} else {ctx.fillStyle=b.player===1?'#ff0055':'#00f3ff';ctx.shadowColor=ctx.fillStyle;ctx.shadowBlur=16;}
+      ctx.fill();ctx.shadowBlur=0;ctx.lineWidth=2;ctx.strokeStyle='rgba(255,255,255,.9)';ctx.stroke();
+    } else if(b.isStatic){
+      const v=b.vertices;ctx.beginPath();ctx.moveTo(v[0].x,v[0].y);for(let i=1;i<v.length;i++)ctx.lineTo(v[i].x,v[i].y);ctx.closePath();ctx.fillStyle='#15152b';ctx.fill();ctx.lineWidth=2;ctx.strokeStyle='#6c4cff';ctx.shadowColor='#6c4cff';ctx.shadowBlur=10;ctx.stroke();ctx.shadowBlur=0;
+    }
+  }
+}
+function drawAim(){
+  if(!selectedPuck||!dragStart||!dragCurrent||gameState!=='PLAYING')return;
+  const pull=Vector.sub(dragStart,dragCurrent), mag=Math.min(Vector.magnitude(pull),125); if(mag<4)return;
+  const dir=Vector.normalise(pull), end=Vector.add(selectedPuck.position,Vector.mult(dir,mag*1.55));
+  ctx.save();ctx.setLineDash([8,6]);ctx.strokeStyle='#ffe600';ctx.lineWidth=3;ctx.shadowColor='#ffe600';ctx.shadowBlur=10;ctx.beginPath();ctx.moveTo(selectedPuck.position.x,selectedPuck.position.y);ctx.lineTo(end.x,end.y);ctx.stroke();ctx.setLineDash([]);
+  const a=Math.atan2(dir.y,dir.x);ctx.fillStyle='#ffe600';ctx.beginPath();ctx.moveTo(end.x,end.y);ctx.lineTo(end.x-12*Math.cos(a-.48),end.y-12*Math.sin(a-.48));ctx.lineTo(end.x-12*Math.cos(a+.48),end.y-12*Math.sin(a+.48));ctx.closePath();ctx.fill();ctx.restore();
+}
+function render(now=0){ drawArena(); drawBodies(); drawAim(); runAI(now); updateCount(); checkWinCondition(false); requestAnimationFrame(render); }
+resetGame(); requestAnimationFrame(render);
+})();
+</script>
+</body>
+</html>
