@@ -1,510 +1,330 @@
 <!DOCTYPE html>
 <html lang="zh-TW">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>雙人彈射大對決</title>
-    <style>
-        * {
-            box-sizing: border-box;
-            user-select: none;
-            -webkit-user-select: none;
-            touch-action: none;
-            margin: 0;
-            padding: 0;
-        }
-        body, html {
-            width: 100%;
-            height: 100%;
-            overflow: hidden;
-            background-color: #0d0f18;
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-            color: #fff;
-        }
-        #game-container {
-            position: relative;
-            width: 100vw;
-            height: 100vh;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-        }
-        canvas {
-            background: #141824;
-            box-shadow: 0 0 20px rgba(0, 255, 204, 0.2);
-        }
-        /* UI 介面 */
-        .overlay {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(13, 15, 24, 0.92);
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            z-index: 10;
-            padding: 20px;
-            text-align: center;
-        }
-        h1 {
-            font-size: 2.2rem;
-            color: #00ffcc;
-            text-shadow: 0 0 10px #00ffcc;
-            margin-bottom: 15px;
-        }
-        p {
-            font-size: 1rem;
-            color: #a0aec0;
-            line-height: 1.6;
-            margin-bottom: 25px;
-            max-width: 300px;
-        }
-        .btn {
-            background: linear-gradient(45deg, #00ffcc, #0099ff);
-            border: none;
-            color: #0d0f18;
-            padding: 14px 32px;
-            font-size: 1.2rem;
-            font-weight: bold;
-            border-radius: 30px;
-            box-shadow: 0 0 15px rgba(0, 255, 204, 0.4);
-            cursor: pointer;
-            transition: transform 0.1s, box-shadow 0.1s;
-        }
-        .btn:active {
-            transform: scale(0.95);
-            box-shadow: 0 0 5px rgba(0, 255, 204, 0.4);
-        }
-        #restart-btn {
-            position: absolute;
-            right: 15px;
-            top: 50%;
-            transform: translateY(-50%);
-            z-index: 5;
-            background: rgba(255, 255, 255, 0.15);
-            border: 1px solid rgba(255, 255, 255, 0.3);
-            color: #fff;
-            padding: 8px 12px;
-            border-radius: 20px;
-            font-size: 0.8rem;
-            backdrop-filter: blur(5px);
-        }
-    </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>Cyberpunk Sling Puck - Final Edition</title>
+  <style>
+    body { margin: 0; background: #080810; color: #00f3ff; font-family: monospace; display: flex; flex-direction: column; align-items: center; overflow: hidden; }
+    #canvas-container { position: relative; margin-top: 10px; border: 2px solid #00f3ff; box-shadow: 0 0 15px #00f3ff; width: 360px; height: 640px; }
+    canvas { display: block; width: 100%; height: 100%; }
+    .ui-panel { position: absolute; top: 10px; left: 10px; right: 10px; display: flex; justify-content: space-between; background: rgba(0,0,0,0.7); padding: 8px; border-radius: 4px; pointer-events: none; font-weight: bold; z-index: 5; }
+    
+    .overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(8, 8, 16, 0.85); display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 10; }
+    .overlay h1 { font-size: 28px; color: #ff0055; text-shadow: 0 0 10px #ff0055; margin: 10px 0; text-align: center; }
+    .overlay p { font-size: 16px; color: #00f3ff; margin-bottom: 20px; text-align: center; }
+    .hidden { display: none !important; }
+
+    .menu { margin-top: 10px; background: #121224; padding: 10px; border: 1px solid #ff0055; width: 340px; display: flex; flex-wrap: wrap; gap: 8px; justify-content: space-between; }
+    label { font-size: 12px; }
+    button { background: #ff0055; color: white; border: none; padding: 6px 12px; font-weight: bold; cursor: pointer; }
+    button:hover { background: #00f3ff; color: black; }
+  </style>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
 </head>
 <body>
 
-<div id="game-container">
-    <canvas id="gameCanvas"></canvas>
-    <button id="restart-btn" onclick="resetGame()">重來</button>
-
-    <!-- 主選單 -->
-    <div id="start-menu" class="overlay">
-        <h1>彈射大對決</h1>
-        <p>📱 <b>雙人面對面操作</b><br>拉住彈片向後拖拽，瞄準中央洞口發射！<br>先清空自己區域內所有彈片的人獲勝！</p>
-        <button class="btn" onclick="startGame()">開始對戰</button>
+  <div id="canvas-container">
+    <div class="ui-panel">
+      <div>P2: <span id="p2-count">0</span></div>
+      <div>TIME: <span id="timer-display">--</span></div>
+      <div>P1: <span id="p1-count">0</span></div>
     </div>
 
-    <!-- 結算畫面 -->
-    <div id="game-over-menu" class="overlay" style="display: none;">
-        <h1 id="winner-text">玩家獲勝！</h1>
-        <p>精彩的對決！</p>
-        <button class="btn" onclick="startGame()">再玩一局</button>
+    <div id="game-overlay" class="overlay">
+      <h1 id="overlay-title">CYBERPUNK SLING</h1>
+      <p id="overlay-desc">載入底圖完成，點擊下方開始對戰</p>
+      <button id="start-btn" onclick="startCountdown()">開始遊戲</button>
     </div>
-</div>
 
-<script>
+    <canvas id="gameCanvas" width="360" height="640"></canvas>
+  </div>
+
+  <div class="menu">
+    <div>
+      <label>模式:</label>
+      <select id="mode-select">
+        <option value="pvp">雙人同屏 (PvP)</option>
+        <option value="ai">單人對戰 (VS AI)</option>
+      </select>
+    </div>
+    <div>
+      <label>勝負:</label>
+      <select id="win-select">
+        <option value="clear">清空制 (Clear)</option>
+        <option value="time">60秒計時 (Time)</option>
+      </select>
+    </div>
+    <div>
+      <label>棋子數:</label>
+      <input type="number" id="puck-num" value="5" min="3" max="8" style="width: 40px;">
+    </div>
+    <div>
+      <label>音效/震動:</label>
+      <input type="checkbox" id="audio-toggle" checked>
+    </div>
+    <button onclick="resetGame()">重新開始</button>
+  </div>
+
+  <script>
+    const { Engine, Composite, Bodies, Vector, Body, Runner, Events } = Matter;
+
+    const engine = Engine.create({ gravity: { x: 0, y: 0 } });
     const canvas = document.getElementById('gameCanvas');
     const ctx = canvas.getContext('2d');
 
-    // 遊戲數據
-    let width, height;
-    let balls = [];
-    let isGameOver = false;
-    let audioCtx = null;
+    // 載入正式背景底圖 (請確保圖片檔名與此處一致並放在同目錄下)
+    const bgImage = new Image();
+    bgImage.src = 'watermarked_img_8437959961356028994.png';
+    let bgReady = false;
+    bgImage.onload = () => { bgReady = true; };
 
-    // 遊戲參數
-    const BALL_RADIUS = 18;
-    const INITIAL_BALLS_PER_PLAYER = 5;
-    const WALL_THICKNESS = 12;
-    const HOLE_SIZE = 95; // 中央洞口大小
+    let pucks = [];
+    let selectedPuck = null;
+    let dragStart = null;
+    let isAI = false;
+    let gameState = 'MENU';
+    let timer = 60;
+    let timerInterval = null;
 
-    let midY = 0;
-
-    // 音效合成 (Web Audio API)
-    function initAudio() {
-        if (!audioCtx) {
-            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-        }
-    }
-
-    function playSound(type) {
-        if (!audioCtx) return;
+    // Web Audio 合成音效
+    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    function playSfx(freq, duration) {
+      if (!document.getElementById('audio-toggle').checked) return;
+      try {
         const osc = audioCtx.createOscillator();
         const gain = audioCtx.createGain();
         osc.connect(gain);
         gain.connect(audioCtx.destination);
-
-        const now = audioCtx.currentTime;
-
-        if (type === 'shoot') {
-            osc.type = 'triangle';
-            osc.frequency.setValueAtTime(300, now);
-            osc.frequency.exponentialRampToValueAtTime(100, now + 0.15);
-            gain.gain.setValueAtTime(0.3, now);
-            gain.gain.linearRampToValueAtTime(0.01, now + 0.15);
-            osc.start(now);
-            osc.stop(now + 0.15);
-        } else if (type === 'hit') {
-            osc.type = 'sine';
-            osc.frequency.setValueAtTime(120, now);
-            gain.gain.setValueAtTime(0.2, now);
-            gain.gain.linearRampToValueAtTime(0.01, now + 0.08);
-            osc.start(now);
-            osc.stop(now + 0.08);
-        } else if (type === 'score') {
-            osc.type = 'sine';
-            osc.frequency.setValueAtTime(523.25, now);
-            osc.frequency.setValueAtTime(659.25, now + 0.08);
-            gain.gain.setValueAtTime(0.2, now);
-            gain.gain.linearRampToValueAtTime(0.01, now + 0.25);
-            osc.start(now);
-            osc.stop(now + 0.25);
-        } else if (type === 'win') {
-            osc.type = 'square';
-            osc.frequency.setValueAtTime(440, now);
-            osc.frequency.setValueAtTime(880, now + 0.2);
-            gain.gain.setValueAtTime(0.2, now);
-            gain.gain.linearRampToValueAtTime(0.01, now + 0.5);
-            osc.start(now);
-            osc.stop(now + 0.5);
-        }
+        osc.frequency.value = freq;
+        gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + duration);
+        osc.start();
+        osc.stop(audioCtx.currentTime + duration);
+      } catch(e) {}
     }
 
-    function resizeCanvas() {
-        width = Math.min(window.innerWidth, 500);
-        height = window.innerHeight;
-        canvas.width = width;
-        canvas.height = height;
-        midY = height / 2;
+    // 建立碰撞牆面
+    function setupWalls() {
+      Composite.clear(engine.world);
+      pucks = [];
+      const wallOpts = { isStatic: true };
+      
+      const topWall = Bodies.rectangle(180, 50, 360, 20, wallOpts);
+      const botWall = Bodies.rectangle(180, 590, 360, 20, wallOpts);
+      const leftWall = Bodies.rectangle(15, 320, 20, 520, wallOpts);
+      const rightWall = Bodies.rectangle(345, 320, 20, 520, wallOpts);
+      const centerLeft = Bodies.rectangle(95, 320, 130, 26.6, wallOpts);
+      const centerRight = Bodies.rectangle(265, 320, 130, 26.6, wallOpts);
+
+      Composite.add(engine.world, [topWall, botWall, leftWall, rightWall, centerLeft, centerRight]);
     }
 
-    window.addEventListener('resize', resizeCanvas);
-    resizeCanvas();
+    Events.on(engine, 'collisionStart', () => {
+      if (gameState === 'PLAYING') playSfx(300, 0.05);
+    });
 
-    class Ball {
-        constructor(x, y, player) {
-            this.x = x;
-            this.y = y;
-            this.vx = 0;
-            this.vy = 0;
-            this.radius = BALL_RADIUS;
-            this.player = player;
-            this.isDragging = false;
-            this.dragTouchId = null;
-            this.dragX = x;
-            this.dragY = y;
-        }
-
-        draw() {
-            ctx.save();
-            ctx.beginPath();
-            ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
-            ctx.fillStyle = this.player === 'A' ? '#00ffcc' : '#ff007f';
-            ctx.shadowColor = this.player === 'A' ? '#00ffcc' : '#ff007f';
-            ctx.shadowBlur = 12;
-            ctx.fill();
-            ctx.closePath();
-            ctx.restore();
-
-            if (this.isDragging) {
-                ctx.save();
-                ctx.beginPath();
-                ctx.moveTo(this.x, this.y);
-                ctx.lineTo(this.dragX, this.dragY);
-                ctx.strokeStyle = '#ffffff';
-                ctx.lineWidth = 3;
-                ctx.setLineDash([5, 5]);
-                ctx.stroke();
-
-                const dx = this.x - this.dragX;
-                const dy = this.y - this.dragY;
-                ctx.beginPath();
-                ctx.moveTo(this.x, this.y);
-                ctx.lineTo(this.x + dx, this.y + dy);
-                ctx.strokeStyle = 'rgba(255, 255, 255, 0.4)';
-                ctx.lineWidth = 2;
-                ctx.setLineDash([]);
-                ctx.stroke();
-                ctx.restore();
-            }
-        }
-
-        update() {
-            if (this.isDragging) return;
-
-            this.x += this.vx;
-            this.y += this.vy;
-
-            this.vx *= 0.985;
-            this.vy *= 0.985;
-
-            if (Math.abs(this.vx) < 0.05) this.vx = 0;
-            if (Math.abs(this.vy) < 0.05) this.vy = 0;
-
-            if (this.x - this.radius < 0) {
-                this.x = this.radius;
-                this.vx *= -0.8;
-                playSound('hit');
-            } else if (this.x + this.radius > width) {
-                this.x = width - this.radius;
-                this.vx *= -0.8;
-                playSound('hit');
-            }
-
-            if (this.y - this.radius < 0) {
-                this.y = this.radius;
-                this.vy *= -0.8;
-                playSound('hit');
-            } else if (this.y + this.radius > height) {
-                this.y = height - this.radius;
-                this.vy *= -0.8;
-                playSound('hit');
-            }
-
-            const holeLeft = (width - HOLE_SIZE) / 2;
-            const holeRight = (width + HOLE_SIZE) / 2;
-
-            if (Math.abs(this.y - midY) < this.radius + WALL_THICKNESS / 2) {
-                if (this.x < holeLeft || this.x > holeRight) {
-                    if (this.y < midY) {
-                        this.y = midY - WALL_THICKNESS / 2 - this.radius;
-                    } else {
-                        this.y = midY + WALL_THICKNESS / 2 + this.radius;
-                    }
-                    this.vy *= -0.8;
-                    playSound('hit');
-                } else {
-                    const currentSector = this.y < midY ? 'B' : 'A';
-                    if (this.player !== currentSector) {
-                        this.player = currentSector;
-                        playSound('score');
-                        checkWinCondition();
-                    }
-                }
-            }
-        }
-    }
-
-    function initBalls() {
-        balls = [];
-        for (let i = 0; i < INITIAL_BALLS_PER_PLAYER; i++) {
-            const x = (width / (INITIAL_BALLS_PER_PLAYER + 1)) * (i + 1);
-            const y = height - 100;
-            balls.push(new Ball(x, y, 'A'));
-        }
-        for (let i = 0; i < INITIAL_BALLS_PER_PLAYER; i++) {
-            const x = (width / (INITIAL_BALLS_PER_PLAYER + 1)) * (i + 1);
-            const y = 100;
-            balls.push(new Ball(x, y, 'B'));
-        }
-    }
-
-    function handleBallCollisions() {
-        for (let i = 0; i < balls.length; i++) {
-            for (let j = i + 1; j < balls.length; j++) {
-                const b1 = balls[i];
-                const b2 = balls[j];
-
-                const dx = b2.x - b1.x;
-                const dy = b2.y - b1.y;
-                const dist = Math.hypot(dx, dy);
-
-                if (dist < b1.radius + b2.radius) {
-                    const overlap = (b1.radius + b2.radius) - dist;
-                    const nx = dx / dist;
-                    const ny = dy / dist;
-
-                    b1.x -= nx * overlap / 2;
-                    b1.y -= ny * overlap / 2;
-                    b2.x += nx * overlap / 2;
-                    b2.y += ny * overlap / 2;
-
-                    const kx = b1.vx - b2.vx;
-                    const ky = b1.vy - b2.vy;
-                    const p = 2 * (nx * kx + ny * ky) / 2;
-
-                    b1.vx -= p * nx;
-                    b1.vy -= p * ny;
-                    b2.vx += p * nx;
-                    b2.vy += p * ny;
-
-                    playSound('hit');
-                }
-            }
-        }
-    }
-
-    function setupTouchEvents() {
-        canvas.addEventListener('touchstart', (e) => {
-            e.preventDefault();
-            initAudio();
-            const rect = canvas.getBoundingClientRect();
-
-            for (let touch of e.changedTouches) {
-                const tx = touch.clientX - rect.left;
-                const ty = touch.clientY - rect.top;
-
-                for (let ball of balls) {
-                    const isInPlayerZone = (ball.player === 'A' && ty > midY) || (ball.player === 'B' && ty < midY);
-                    
-                    if (isInPlayerZone && !ball.isDragging) {
-                        const dist = Math.hypot(tx - ball.x, ty - ball.y);
-                        if (dist < ball.radius * 2) {
-                            ball.isDragging = true;
-                            ball.dragTouchId = touch.identifier;
-                            ball.dragX = tx;
-                            ball.dragY = ty;
-                            break;
-                        }
-                    }
-                }
-            }
-        }, { passive: false });
-
-        canvas.addEventListener('touchmove', (e) => {
-            e.preventDefault();
-            const rect = canvas.getBoundingClientRect();
-
-            for (let touch of e.changedTouches) {
-                for (let ball of balls) {
-                    if (ball.isDragging && ball.dragTouchId === touch.identifier) {
-                        ball.dragX = touch.clientX - rect.left;
-                        ball.dragY = touch.clientY - rect.top;
-                    }
-                }
-            }
-        }, { passive: false });
-
-        const handleTouchEnd = (e) => {
-            e.preventDefault();
-            for (let touch of e.changedTouches) {
-                for (let ball of balls) {
-                    if (ball.isDragging && ball.dragTouchId === touch.identifier) {
-                        ball.isDragging = false;
-                        ball.dragTouchId = null;
-
-                        const dx = ball.x - ball.dragX;
-                        const dy = ball.y - ball.dragY;
-                        const force = 0.25;
-
-                        ball.vx = dx * force;
-                        ball.vy = dy * force;
-
-                        const speed = Math.hypot(ball.vx, ball.vy);
-                        if (speed > 22) {
-                            ball.vx = (ball.vx / speed) * 22;
-                            ball.vy = (ball.vy / speed) * 22;
-                        }
-
-                        if (speed > 1) {
-                            playSound('shoot');
-                        }
-                    }
-                }
-            }
-        };
-
-        canvas.addEventListener('touchend', handleTouchEnd, { passive: false });
-        canvas.addEventListener('touchcancel', handleTouchEnd, { passive: false });
-    }
-
-    function checkWinCondition() {
-        const countA = balls.filter(b => b.player === 'A').length;
-        const countB = balls.filter(b => b.player === 'B').length;
-
-        if (countA === 0) {
-            endGame('玩家 A (下方)');
-        } else if (countB === 0) {
-            endGame('玩家 B (上方)');
-        }
-    }
-
-    function drawEnvironment() {
-        ctx.fillStyle = '#101420';
-        ctx.fillRect(0, 0, width, midY);
-        ctx.fillStyle = '#141a29';
-        ctx.fillRect(0, midY, width, height / 2);
-
-        const holeLeft = (width - HOLE_SIZE) / 2;
-        const holeRight = (width + HOLE_SIZE) / 2;
-
-        ctx.fillStyle = '#00ffcc';
-        ctx.shadowColor = '#00ffcc';
-        ctx.shadowBlur = 10;
-
-        ctx.fillRect(0, midY - WALL_THICKNESS / 2, holeLeft, WALL_THICKNESS);
-        ctx.fillRect(holeRight, midY - WALL_THICKNESS / 2, width - holeRight, WALL_THICKNESS);
-
-        ctx.shadowBlur = 0;
-
-        const countA = balls.filter(b => b.player === 'A').length;
-        const countB = balls.filter(b => b.player === 'B').length;
-
-        ctx.save();
-        ctx.translate(width / 2, 40);
-        ctx.rotate(Math.PI);
-        ctx.font = 'bold 20px sans-serif';
-        ctx.fillStyle = '#ff007f';
-        ctx.textAlign = 'center';
-        ctx.fillText(`剩餘彈片: ${countB}`, 0, 0);
-        ctx.restore();
-
-        ctx.save();
-        ctx.font = 'bold 20px sans-serif';
-        ctx.fillStyle = '#00ffcc';
-        ctx.textAlign = 'center';
-        ctx.fillText(`剩餘彈片: ${countA}`, width / 2, height - 30);
-        ctx.restore();
-    }
-
-    function gameLoop() {
-        ctx.clearRect(0, 0, width, height);
-
-        drawEnvironment();
-
-        balls.forEach(ball => ball.update());
-        handleBallCollisions();
-        balls.forEach(ball => ball.draw());
-
-        if (!isGameOver) {
-            requestAnimationFrame(gameLoop);
-        }
-    }
-
-    function startGame() {
-        initAudio();
-        document.getElementById('start-menu').style.display = 'none';
-        document.getElementById('game-over-menu').style.display = 'none';
-        resetGame();
+    function spawnPucks(count) {
+      for (let i = 0; i < count; i++) {
+        const p1 = Bodies.circle(80 + i * 40, 500, 14, { restitution: 0.8, frictionAir: 0.03 });
+        const p2 = Bodies.circle(80 + i * 40, 140, 14, { restitution: 0.8, frictionAir: 0.03 });
+        pucks.push(p1, p2);
+      }
+      Composite.add(engine.world, pucks);
     }
 
     function resetGame() {
-        isGameOver = false;
-        initBalls();
-        requestAnimationFrame(gameLoop);
+      clearInterval(timerInterval);
+      gameState = 'MENU';
+      const count = parseInt(document.getElementById('puck-num').value);
+      isAI = document.getElementById('mode-select').value === 'ai';
+      
+      setupWalls();
+      spawnPucks(count);
+      updateCount();
+
+      document.getElementById('game-overlay').classList.remove('hidden');
+      document.getElementById('overlay-title').innerText = 'CYBERPUNK SLING';
+      document.getElementById('overlay-desc').innerText = '底圖加載完成，準備對戰';
+      document.getElementById('start-btn').innerText = '開始遊戲';
+      document.getElementById('timer-display').innerText = '--';
     }
 
-    function endGame(winnerName) {
-        isGameOver = true;
-        playSound('win');
-        document.getElementById('winner-text').innerText = `${winnerName} 獲勝！`;
-        document.getElementById('game-over-menu').style.display = 'flex';
+    function startCountdown() {
+      if (audioCtx.state === 'suspended') audioCtx.resume();
+      gameState = 'COUNTDOWN';
+      let count = 3;
+      const title = document.getElementById('overlay-title');
+      const desc = document.getElementById('overlay-desc');
+      document.getElementById('start-btn').classList.add('hidden');
+      
+      desc.innerText = 'GET READY...';
+      title.innerText = count;
+      playSfx(440, 0.1);
+
+      const cdInterval = setInterval(() => {
+        count--;
+        if (count > 0) {
+          title.innerText = count;
+          playSfx(440, 0.1);
+        } else {
+          clearInterval(cdInterval);
+          playSfx(880, 0.2);
+          document.getElementById('game-overlay').classList.add('hidden');
+          document.getElementById('start-btn').classList.remove('hidden');
+          startGameplay();
+        }
+      }, 1000);
     }
 
-    setupTouchEvents();
-</script>
+    function startGameplay() {
+      gameState = 'PLAYING';
+      const winMode = document.getElementById('win-select').value;
+
+      if (winMode === 'time') {
+        timer = 60;
+        document.getElementById('timer-display').innerText = timer;
+        timerInterval = setInterval(() => {
+          if (gameState !== 'PLAYING') return;
+          timer--;
+          document.getElementById('timer-display').innerText = timer;
+          if (timer <= 0) checkWinCondition(true);
+        }, 1000);
+      }
+    }
+
+    function checkWinCondition(isTimeUp = false) {
+      if (gameState !== 'PLAYING') return;
+
+      let p1Count = 0, p2Count = 0;
+      pucks.forEach(p => {
+        if (p.position.y > 320) p1Count++;
+        else p2Count++;
+      });
+
+      const winMode = document.getElementById('win-select').value;
+      let winner = null;
+
+      if (winMode === 'clear') {
+        if (p1Count === 0) winner = 'P1 (Player 1)';
+        else if (p2Count === 0) winner = 'P2 (Player 2 / AI)';
+      } else if (winMode === 'time' && isTimeUp) {
+        if (p1Count < p2Count) winner = 'P1 (Player 1)';
+        else if (p2Count < p1Count) winner = 'P2 (Player 2 / AI)';
+        else winner = 'DRAW (平手)';
+      }
+
+      if (winner) triggerGameOver(winner);
+    }
+
+    function triggerGameOver(winner) {
+      gameState = 'GAMEOVER';
+      clearInterval(timerInterval);
+      playSfx(600, 0.3);
+
+      const overlay = document.getElementById('game-overlay');
+      overlay.classList.remove('hidden');
+      document.getElementById('overlay-title').innerText = 'GAME OVER';
+      document.getElementById('overlay-desc').innerText = winner === 'DRAW (平手)' ? '雙方平手！' : `獲勝者: ${winner}`;
+      document.getElementById('start-btn').innerText = '再玩一次';
+    }
+
+    canvas.addEventListener('mousedown', (e) => {
+      if (gameState !== 'PLAYING') return;
+      const rect = canvas.getBoundingClientRect();
+      const pos = { x: e.clientX - rect.left, y: e.clientY - rect.top };
+      
+      pucks.forEach(puck => {
+        if (Vector.magnitude(Vector.sub(puck.position, pos)) < 20) {
+          selectedPuck = puck;
+          dragStart = pos;
+        }
+      });
+    });
+
+    canvas.addEventListener('mousemove', (e) => {
+      if (selectedPuck) {
+        const rect = canvas.getBoundingClientRect();
+        dragStart = { x: e.clientX - rect.left, y: e.clientY - rect.top };
+      }
+    });
+
+    canvas.addEventListener('mouseup', () => {
+      if (selectedPuck && dragStart) {
+        const force = Vector.mult(Vector.sub(selectedPuck.position, dragStart), 0.005);
+        Body.applyForce(selectedPuck, selectedPuck.position, force);
+        playSfx(520, 0.15);
+        if (document.getElementById('audio-toggle').checked && navigator.vibrate) navigator.vibrate(30);
+      }
+      selectedPuck = null;
+      dragStart = null;
+    });
+
+    function updateCount() {
+      let p1Count = 0, p2Count = 0;
+      pucks.forEach(p => {
+        if (p.position.y > 320) p1Count++;
+        else p2Count++;
+      });
+      document.getElementById('p1-count').innerText = p1Count;
+      document.getElementById('p2-count').innerText = p2Count;
+    }
+
+    function runAI() {
+      if (!isAI || gameState !== 'PLAYING') return;
+      const p2Pucks = pucks.filter(p => p.position.y < 320 && Vector.magnitude(p.velocity) < 0.1);
+      if (p2Pucks.length > 0 && Math.random() < 0.03) {
+        const targetPuck = p2Pucks[Math.floor(Math.random() * p2Pucks.length)];
+        const targetGate = { x: 180, y: 320 };
+        const dir = Vector.normalise(Vector.sub(targetGate, targetPuck.position));
+        Body.applyForce(targetPuck, targetPuck.position, Vector.mult(dir, 0.08));
+        playSfx(480, 0.1);
+      }
+    }
+
+    const runner = Runner.create();
+    Runner.run(runner, engine);
+
+    (function render() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      if (bgReady) {
+        ctx.drawImage(bgImage, 0, 0, canvas.width, canvas.height);
+      } else {
+        ctx.fillStyle = '#080810';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+      }
+
+      const bodies = Composite.allBodies(engine.world);
+      bodies.forEach(b => {
+        if (b.circleRadius) {
+          ctx.beginPath();
+          ctx.arc(b.position.x, b.position.y, b.circleRadius, 0, 2 * Math.PI);
+          ctx.fillStyle = b.position.y > 320 ? '#00f3ff' : '#ff0055';
+          ctx.fill();
+          ctx.lineWidth = 2;
+          ctx.strokeStyle = '#ffffff';
+          ctx.stroke();
+        }
+      });
+
+      if (selectedPuck && dragStart && gameState === 'PLAYING') {
+        ctx.beginPath();
+        ctx.moveTo(selectedPuck.position.x, selectedPuck.position.y);
+        ctx.lineTo(dragStart.x, dragStart.y);
+        ctx.strokeStyle = '#ffff00';
+        ctx.lineWidth = 3;
+        ctx.stroke();
+      }
+
+      runAI();
+      updateCount();
+      checkWinCondition();
+      requestAnimationFrame(render);
+    })();
+
+    resetGame();
+  </script>
 </body>
 </html>
+
