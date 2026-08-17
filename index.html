@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="theme-color" content="#05050a">
+<title>Penny Warp v2.1.3</title>
+<style>
+html,body{margin:0;width:100%;height:100%;background:#05050a;color:#00f3ff;font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,"Noto Sans TC",monospace}
+body{display:flex;align-items:center;justify-content:center;min-height:100dvh}
+#boot{width:min(88vw,420px);text-align:center;padding:24px;border:1px solid rgba(0,243,255,.55);border-radius:16px;background:rgba(10,12,24,.96);box-shadow:0 0 28px rgba(0,243,255,.18)}
+#boot h1{margin:0 0 8px;color:#fff;text-shadow:0 0 12px #00f3ff,0 0 18px #ff0055}.ver{color:rgba(255,255,255,.58);font-size:12px}.msg{margin-top:18px;font-size:13px;line-height:1.6}.err{color:#ff6b83}
+</style>
+</head>
+<body>
+<div id="boot"><h1>PENNY WARP</h1><div class="ver">v2.1.3</div><div id="boot-msg" class="msg">正在載入主程式…</div></div>
+<script>
+(async()=>{
+  'use strict';
+  const CURRENT_SHA='f0483d3f5e296f9b6166c9a463475cd329921244';
+  const STABLE_SHA='56548cb80527bc71e766246dd4097b4bd27aa3a6';
+  const RAW='https://raw.githubusercontent.com/ksp4022-ko/Penny_warp/';
+  const msg=document.getElementById('boot-msg');
+  try{
+    const [curRes,oldRes]=await Promise.all([
+      fetch(`${RAW}${CURRENT_SHA}/index.html`,{cache:'no-store'}),
+      fetch(`${RAW}${STABLE_SHA}/index.html`,{cache:'no-store'})
+    ]);
+    if(!curRes.ok||!oldRes.ok)throw new Error(`source fetch failed: ${curRes.status}/${oldRes.status}`);
+    let current=await curRes.text();
+    const stable=await oldRes.text();
+
+    const blockStart=stable.indexOf('function setupWalls(){');
+    const blockEnd=stable.indexOf('function resetGame(){',blockStart);
+    const insertAt=current.indexOf('function resetGame(){');
+    if(blockStart<0||blockEnd<=blockStart||insertAt<0)throw new Error('core helper block marker not found');
+
+    if(!current.includes('function setupWalls(){')){
+      const coreBlock=stable.slice(blockStart,blockEnd);
+      current=current.slice(0,insertAt)+coreBlock+'\n'+current.slice(insertAt);
+    }
+
+    current=current.replaceAll('Penny Warp v2.1.2','Penny Warp v2.1.3');
+    current=current.replaceAll('>v2.1.2<','>v2.1.3<');
+    current=current.replaceAll('?v=2.1.2','?v=2.1.3');
+
+    document.open();
+    document.write(current);
+    document.close();
+  }catch(err){
+    console.error('[Penny Warp boot]',err);
+    msg.className='msg err';
+    msg.textContent='主程式載入失敗，請重新整理。若持續發生，請回報 v2.1.3 啟動錯誤。';
+  }
+})();
+</script>
+</body>
+</html>
