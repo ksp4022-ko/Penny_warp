@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="theme-color" content="#05050a">
+<title>Penny Warp v2.1.4</title>
+<style>
+html,body{margin:0;width:100%;height:100%;background:#05050a;color:#00f3ff;font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,"Noto Sans TC",monospace}
+body{display:flex;align-items:center;justify-content:center;min-height:100dvh}
+#boot{width:min(88vw,420px);text-align:center;padding:24px;border:1px solid rgba(0,243,255,.55);border-radius:16px;background:rgba(10,12,24,.96);box-shadow:0 0 28px rgba(0,243,255,.18)}
+#boot h1{margin:0 0 8px;color:#fff;text-shadow:0 0 12px #00f3ff,0 0 18px #ff0055}.ver{color:rgba(255,255,255,.58);font-size:12px}.msg{margin-top:18px;font-size:13px;line-height:1.6}.err{color:#ff6b83}
+</style>
+</head>
+<body>
+<div id="boot"><h1>PENNY WARP</h1><div class="ver">v2.1.4</div><div id="boot-msg" class="msg">正在載入主程式…</div></div>
+
+<script>
+(async()=>{
+  'use strict';
+
+  // v2.1.4 仍以最後完整功能版 v2.1.2 + v2.1.1 遺失核心區塊重建，
+  // 避免再從不完整的聊天工作階段推測原始碼。
+  const V212_SHA='f0483d3f5e296f9b6166c9a463475cd329921244';
+  const V211_SHA='56548cb80527bc71e766246dd4097b4bd27aa3a6';
+  const RAW='https://raw.githubusercontent.com/ksp4022-ko/Penny_warp/';
+  const msg=document.getElementById('boot-msg');
+
+  const cssPatch=String.raw`
+/* ===== v2.1.4 SETTINGS UX / MAIN MENU PATCH ===== */
+.menu{
+  inset:0!important;left:0!important;right:0!important;bottom:0!important;
+  width:100%!important;height:100%!important;max-height:none!important;
+  padding:0 14px 24px!important;border:0!important;border-radius:0!important;
+  box-shadow:none!important;background:linear-gradient(180deg,rgba(8,10,22,.995),rgba(4,5,12,.995))!important;
+  grid-template-columns:1fr 1fr!important;align-content:start!important;gap:10px!important;
+  overflow-y:auto!important;z-index:55!important;
+}
+.menu.hidden-menu{opacity:0!important;pointer-events:none!important;transform:translateY(12px)!important}
+.settings-topbar{
+  position:sticky;top:0;z-index:6;grid-column:1/-1;
+  min-height:62px;margin:0 -14px 6px;padding:12px 14px;
+  display:flex;align-items:center;justify-content:center;
+  background:rgba(5,6,15,.97);border-bottom:1px solid rgba(0,243,255,.28);
+  backdrop-filter:blur(10px);
+}
+.settings-title{font-size:19px;font-weight:1000;color:#fff;letter-spacing:.08em;text-shadow:0 0 10px rgba(0,243,255,.5)}
+.settings-close-btn{
+  position:absolute;right:14px;top:9px;width:44px;height:44px;border-radius:50%;
+  border:2px solid var(--cyan);background:rgba(0,243,255,.10);color:#fff;
+  font:900 28px/1 ui-sans-serif,system-ui;display:flex;align-items:center;justify-content:center;
+  box-shadow:0 0 12px rgba(0,243,255,.25);cursor:pointer;
+}
+.settings-close-btn:active{transform:scale(.94);background:rgba(0,243,255,.24)}
+.profile-chip{gap:14px!important;padding:12px 14px!important}
+.profile-active{display:flex;flex-direction:column;align-items:flex-start;min-width:0;flex:1;gap:7px}
+.profile-active .active-label{display:block;color:rgba(255,255,255,.58);font-size:11px;letter-spacing:.10em;line-height:1}
+.profile-active .active-name{
+  display:block;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+  color:var(--cyan);font-size:26px;line-height:1;font-weight:1000;text-shadow:0 0 11px rgba(0,243,255,.48)
+}
+.big-menu-btn{
+  display:grid!important;grid-template-columns:34px max-content 34px!important;
+  justify-content:center!important;align-items:center!important;column-gap:8px!important;
+}
+.big-menu-btn .menu-icon{width:34px;text-align:center;font-size:20px;line-height:1}
+.big-menu-btn .menu-label{text-align:left;white-space:nowrap}
+.app-modal{
+  position:absolute;inset:0;z-index:90;display:flex;align-items:center;justify-content:center;
+  padding:22px;background:rgba(0,0,0,.74);backdrop-filter:blur(7px)
+}
+.app-modal.hidden{display:none!important}
+.app-modal-card{
+  width:100%;max-width:330px;border:1px solid rgba(0,243,255,.58);border-radius:14px;
+  background:linear-gradient(180deg,rgba(18,20,38,.99),rgba(7,8,17,.99));
+  box-shadow:0 0 26px rgba(0,243,255,.20),0 0 36px rgba(255,0,85,.12);
+  padding:18px;
+}
+.app-modal-title{text-align:center;color:var(--yellow);font-size:18px;font-weight:1000;margin-bottom:10px}
+.app-modal-message{text-align:center;color:#fff;font-size:13px;line-height:1.6;white-space:pre-line;margin-bottom:15px}
+.app-modal-actions{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+.app-modal-actions.single{grid-template-columns:1fr}
+.app-modal-btn{
+  min-height:46px;border-radius:8px;border:1px solid var(--cyan);background:rgba(0,243,255,.10);
+  color:#fff;font:inherit;font-weight:950
+}
+.app-modal-btn.primary{border-color:var(--pink);background:rgba(255,0,85,.22)}
+.app-modal-btn:active{transform:scale(.98)}
+@media(max-width:380px){
+  .menu{grid-template-columns:1fr!important}
+  .settings-topbar,.section-title,.control.full,.setting-lock-note{grid-column:1/-1!important}
+}
+`;
+
+  const helperPatch=String.raw`
+/* ===== v2.1.4 runtime UX helpers ===== */
+let committedRuleValues={mode:null,win:null,puck:null};
+function syncCommittedRuleValues(){
+  committedRuleValues={
+    mode:els.mode?.value||'pvp',
+    win:els.win?.value||'clear',
+    puck:String(els.puckNum?.value||5)
+  };
+}
+function ensureAppModal(){
+  let m=$('app-modal');
+  if(m)return m;
+  m=document.createElement('div');
+  m.id='app-modal';
+  m.className='app-modal hidden';
+  m.innerHTML='<div class="app-modal-card"><div id="app-modal-title" class="app-modal-title"></div><div id="app-modal-message" class="app-modal-message"></div><div id="app-modal-actions" class="app-modal-actions"><button id="app-modal-cancel" class="app-modal-btn" type="button">取消</button><button id="app-modal-confirm" class="app-modal-btn primary" type="button">確認</button></div></div>';
+  document.getElementById('canvas-container').appendChild(m);
+  return m;
+}
+function showAppModal({title='提示',message='',confirmText='確認',cancelText='取消',single=false,onConfirm=()=>{},onCancel=()=>{}}={}){
+  const m=ensureAppModal(),actions=$('app-modal-actions'),ok=$('app-modal-confirm'),cancel=$('app-modal-cancel');
+  $('app-modal-title').textContent=title;
+  $('app-modal-message').textContent=message;
+  ok.textContent=confirmText;
+  cancel.textContent=cancelText;
+  actions.classList.toggle('single',single);
+  cancel.classList.toggle('hidden',single);
+  m.classList.remove('hidden');
+  ok.onclick=()=>{m.classList.add('hidden');onConfirm()};
+  cancel.onclick=()=>{m.classList.add('hidden');onCancel()};
+}
+function showRangeNotice(){
+  showAppModal({
+    title:'棋子數量',
+    message:'只能設定 1～10 顆',
+    confirmText:'收到',
+    single:true
+  });
+}
+function removeCurrentObstaclesOnly(){
+  for(const o of [...obstacles]){
+    try{Composite.remove(engine.world,o,true)}catch(_){}
+  }
+  obstacles=[];
+  warpCooldown.clear();
+}
+function protectNewObstaclesFromOverlap(){
+  for(const o of obstacles){
+    if(o.label==='OB_WARP')continue;
+    let overlap=false;
+    try{overlap=pucks.some(p=>!!Matter.Collision.collides(o,p))}catch(_){}
+    if(overlap){
+      o.isSensor=true;
+      o.plugin={...(o.plugin||{}),pendingSolid:true};
+    }
+  }
+}
+function updatePendingObstacleSolids(){
+  for(const o of obstacles){
+    if(!o.plugin?.pendingSolid)continue;
+    let overlap=false;
+    try{overlap=pucks.some(p=>!!Matter.Collision.collides(o,p))}catch(_){}
+    if(!overlap){
+      o.isSensor=false;
+      o.plugin.pendingSolid=false;
+    }
+  }
+}
+function refreshObstaclesImmediate(){
+  if(currentMatch?.type==='stage')return;
+  removeCurrentObstaclesOnly();
+  setupObstacles();
+  protectNewObstaclesFromOverlap();
+}
+function restartCurrentMatchWithRules(){
+  saveSettings();
+  closeSettingsPanel();
+  els.pauseBadge.classList.remove('show');
+  pausedByMenu=false;
+  resetGame();
+  runReadyCountdown('new');
+}
+function handleRestartRuleChange(key,el,label){
+  const prev=committedRuleValues[key]??el.value;
+  const next=el.value;
+
+  if(key==='puck'){
+    const n=Number(next);
+    if(!Number.isInteger(n)||n<1||n>10){
+      el.value=prev;
+      showRangeNotice();
+      return;
+    }
+  }
+  if(String(next)===String(prev))return;
+
+  if(currentMatch?.type==='stage'){
+    el.value=prev;
+    showAppModal({
+      title:'STAGE MODE',
+      message:'關卡模式的遊戲規則由關卡固定，無法在進行中修改。',
+      confirmText:'收到',
+      single:true
+    });
+    return;
+  }
+
+  // 主選單尚未進入對局：直接保存，下一局使用。
+  if(!currentMatch){
+    committedRuleValues[key]=String(next);
+    saveSettings();
+    return;
+  }
+
+  const readable=label+'：'+prev+' → '+next;
+  showAppModal({
+    title:'需要開新遊戲',
+    message:readable+'\n\n此修改需要開始新遊戲才能生效。',
+    confirmText:'確認',
+    cancelText:'取消',
+    onCancel:()=>{
+      el.value=prev;
+      syncOutputs();
+    },
+    onConfirm:()=>{
+      committedRuleValues[key]=String(next);
+      saveSettings();
+
+      if(key==='mode'){
+        closeSettingsPanel();
+        els.pauseBadge.classList.remove('show');
+        pausedByMenu=false;
+        if(next==='ai'){
+          beginMatch('ai');
+        }else{
+          currentMatch=null;
+          showPvpSetup();
+        }
+        return;
+      }
+      restartCurrentMatchWithRules();
+    }
+  });
+}
+`;
+
+  const listenersPatch=String.raw`
+/* v2.1.4：需重開遊戲的規則設定 */
+els.mode.addEventListener('change',()=>handleRestartRuleChange('mode',els.mode,'模式'));
+els.win.addEventListener('change',()=>handleRestartRuleChange('win',els.win,'勝負'));
+els.puckNum.addEventListener('change',()=>handleRestartRuleChange('puck',els.puckNum,'棋子數'));
+
+/* v2.1.4：PvP / AI 障礙物立即生效；Stage 維持關卡鎖定 */
+for(const el of [els.obstacleBumper,els.obstacleBlock,els.obstacleRotator,els.obstaclePulse,els.obstacleWarp]){
+  el.addEventListener('change',()=>{
+    if(currentMatch?.type==='stage'){
+      setObstacleControlsLocked(true);
+      return;
+    }
+    saveSettings();
+    if(currentMatch)refreshObstaclesImmediate();
+  });
+}
+`;
+
+  try{
+    const [curRes,oldRes]=await Promise.all([
+      fetch(`${RAW}${V212_SHA}/index.html`,{cache:'no-store'}),
+      fetch(`${RAW}${V211_SHA}/index.html`,{cache:'no-store'})
+    ]);
+    if(!curRes.ok||!oldRes.ok)throw new Error(`source fetch failed: ${curRes.status}/${oldRes.status}`);
+    let current=await curRes.text();
+    const stable=await oldRes.text();
+
+    // 1) 補回 v2.1.2 意外遺失的核心場地 / 棋子 helper block。
+    const blockStart=stable.indexOf('function setupWalls(){');
+    const blockEnd=stable.indexOf('function resetGame(){',blockStart);
+    const insertAt=current.indexOf('function resetGame(){');
+    if(blockStart<0||blockEnd<=blockStart||insertAt<0)throw new Error('core helper block marker not found');
+    if(!current.includes('function setupWalls(){')){
+      const coreBlock=stable.slice(blockStart,blockEnd);
+      current=current.slice(0,insertAt)+coreBlock+'\n'+current.slice(insertAt);
+    }
+
+    // 2) 版本。
+    current=current.replaceAll('Penny Warp v2.1.2','Penny Warp v2.1.4');
+    current=current.replaceAll('>v2.1.2<','>v2.1.4<');
+    current=current.replaceAll('?v=2.1.2','?v=2.1.4');
+
+    // 3) Matter.js 失敗時至少顯示可辨識的主畫面，不再只剩空白。
+    current=current.replace(
+      "const { Engine, Composite, Bodies, Vector, Body, Events } = Matter;",
+      `if(typeof Matter==='undefined'){
+        const sc=document.getElementById('system-content');
+        if(sc)sc.innerHTML='<div class="screen-title">PENNY WARP</div><div class="screen-sub">遊戲引擎載入失敗，請重新整理頁面。</div><div class="menu-stack"><button class="big-menu-btn" type="button" onclick="location.reload()">重新載入</button></div>';
+        throw new Error('Matter.js unavailable');
+      }
+      const { Engine, Composite, Bodies, Vector, Body, Events } = Matter;`
+    );
+
+    // 4) Settings 全螢幕 + 右上 X。
+    current=current.replace('</style>',cssPatch+'\n</style>');
+    current=current.replace(
+      '<div id="control-menu" class="menu hidden-menu">',
+      '<div id="control-menu" class="menu hidden-menu"><div class="settings-topbar"><div class="settings-title">SETTINGS</div><button id="settings-close-btn" class="settings-close-btn" type="button" aria-label="關閉設定">×</button></div>'
+    );
+
+    // 5) 移除棋子數量固定說明；改用超出範圍時的自訂提示。
+    current=current.replace('<div class="note">1～10 顆，<strong>最多 10 顆</strong></div>','');
+
+    // 6) ACTIVE PLAYER 與名字分層、放大。
+    current=current.replace(
+      '<div class="profile-chip"><div><span>ACTIVE PLAYER</span><strong>',
+      '<div class="profile-chip"><div class="profile-active"><span class="active-label">ACTIVE PLAYER</span><strong class="active-name">'
+    );
+
+    // 7) 主選單固定圖示欄，讓圖示與文字整組置中且圖示左切齊。
+    current=current.replace('▶ PLAY</button>','<span class="menu-icon">▶</span><span class="menu-label">PLAY</span><span></span></button>');
+    current=current.replace('◆ STAGE MODE</button>','<span class="menu-icon">◆</span><span class="menu-label">STAGE MODE</span><span></span></button>');
+    current=current.replace('🏆 RECORDS</button>','<span class="menu-icon">🏆</span><span class="menu-label">RECORDS</span><span></span></button>');
+    current=current.replace('👤 PLAYER PROFILE</button>','<span class="menu-icon">👤</span><span class="menu-label">PLAYER PROFILE</span><span></span></button>');
+    current=current.replace('⚙ SETTINGS</button>','<span class="menu-icon">⚙</span><span class="menu-label">SETTINGS</span><span></span></button>');
+
+    // 8) 全螢幕 Settings 開啟時隱藏浮動齒輪；X 使用既有關閉 / 暫停恢復流程。
+    current=current.replace(
+      "function openSettingsFromHome(){settingsFromHome=true;gameState='MENU';isPaused=true;els.systemScreen.classList.add('hidden');els.fab.classList.remove('hidden');els.menu.classList.remove('hidden-menu')}",
+      "function openSettingsFromHome(){settingsFromHome=true;gameState='MENU';isPaused=true;els.systemScreen.classList.add('hidden');els.fab.classList.add('hidden');els.menu.classList.remove('hidden-menu')}"
+    );
+    current=current.replace(
+      "if(opening){\n    els.menu.classList.remove('hidden-menu');",
+      "if(opening){\n    els.menu.classList.remove('hidden-menu');\n    els.fab.classList.add('hidden');"
+    );
+    current=current.replace(
+      "// 關閉設定\n  els.menu.classList.add('hidden-menu');",
+      "// 關閉設定\n  els.menu.classList.add('hidden-menu');\n  els.fab.classList.remove('hidden');"
+    );
+
+    // 9) runtime helper：彈窗、規則重啟、即時障礙物。
+    const helperInsert=current.indexOf('function beginMatch(');
+    if(helperInsert<0)throw new Error('beginMatch marker not found');
+    current=current.slice(0,helperInsert)+helperPatch+'\n'+current.slice(helperInsert);
+
+    // 10) 新障礙物若與棋子重疊，先 sensor 等棋子離開後才實體化。
+    current=current.replace(
+      'updateObstacles(now,rawDt);\n    runAI(now);',
+      'updateObstacles(now,rawDt);\n    updatePendingObstacleSolids();\n    runAI(now);'
+    );
+
+    // 11) 一般即時設定保留；把模式 / 勝負 / 棋子 / 障礙物開關移出共用 listener。
+    const oldListenerArray="[els.mode,els.win,els.puckNum,els.audio,els.selectEffect,els.selectIntensity,els.trailIntensity,els.aimMode,els.impactMode,els.impactIntensity,els.qualityMode,els.comic,els.combo,els.comicLevel,els.arenaTheme,els.obstacleDisplayMode,els.obstacleBumper,els.obstacleBlock,els.obstacleRotator,els.obstaclePulse,els.obstacleWarp]";
+    const newListenerArray="[els.audio,els.selectEffect,els.selectIntensity,els.trailIntensity,els.aimMode,els.impactMode,els.impactIntensity,els.qualityMode,els.comic,els.combo,els.comicLevel,els.arenaTheme,els.obstacleDisplayMode]";
+    if(!current.includes(oldListenerArray))throw new Error('settings listener marker not found');
+    current=current.replace(oldListenerArray,newListenerArray);
+
+    current=current.replace(
+      "els.fab.addEventListener('click',toggleMenu);",
+      "els.fab.addEventListener('click',toggleMenu);\n$('settings-close-btn')?.addEventListener('click',toggleMenu);"
+    );
+
+    const bgListenerMarker="els.bgUpload.addEventListener('click',()=>els.bgFile.click());";
+    if(!current.includes(bgListenerMarker))throw new Error('asset listener marker not found');
+    current=current.replace(bgListenerMarker,listenersPatch+'\n'+bgListenerMarker);
+
+    // 12) defaults / 回主選單時同步「目前有效的規則值」。
+    current=current.replace(
+      "localStorage.removeItem(SETTINGS_KEY);applySettings(DEFAULTS);saveSettings();resetGame();",
+      "localStorage.removeItem(SETTINGS_KEY);applySettings(DEFAULTS);syncCommittedRuleValues();saveSettings();resetGame();"
+    );
+    current=current.replace(
+      "currentMatch=null;loadSettings();setObstacleControlsLocked(false);",
+      "currentMatch=null;loadSettings();syncCommittedRuleValues();setObstacleControlsLocked(false);"
+    );
+
+    // 13) 啟動流程與 resetGame 解耦：主選單先顯示；遊戲世界在真正開始對局時建立。
+    const oldBoot="loadSettings();loadPlayerStore();loadRecords();loadStageProgress();loadCyberOverlay();restorePersistedAssets();resetGame();els.overlay.classList.add('hidden');\nif(playerStore.players.length===0)showFirstSetup();else if(playerStore.players.length>1)showPlayerSelect();else{playerStore.activeId=playerStore.players[0].id;savePlayerStore();showMainMenu()}\nrequestAnimationFrame(frame);";
+    const newBoot=`loadSettings();syncCommittedRuleValues();loadPlayerStore();loadRecords();loadStageProgress();loadCyberOverlay();restorePersistedAssets();els.overlay.classList.add('hidden');
+try{
+  if(playerStore.players.length===0)showFirstSetup();
+  else if(playerStore.players.length>1)showPlayerSelect();
+  else{playerStore.activeId=playerStore.players[0].id;savePlayerStore();showMainMenu()}
+}catch(err){
+  console.error('[Penny Warp menu boot]',err);
+  els.systemScreen.classList.remove('hidden');
+  els.systemContent.innerHTML='<div class="screen-title">PENNY WARP</div><div class="screen-sub">主選單初始化失敗，請重新載入。</div><div class="menu-stack"><button class="big-menu-btn" type="button" onclick="location.reload()">重新載入</button></div>';
+}
+requestAnimationFrame(frame);`;
+    if(!current.includes(oldBoot))throw new Error('boot marker not found');
+    current=current.replace(oldBoot,newBoot);
+
+    document.open();
+    document.write(current);
+    document.close();
+  }catch(err){
+    console.error('[Penny Warp v2.1.4 boot]',err);
+    msg.className='msg err';
+    msg.textContent='主程式載入失敗，請重新整理。若持續發生，請回報 v2.1.4 啟動錯誤。';
+  }
+})();
+</script>
+</body>
+</html>
