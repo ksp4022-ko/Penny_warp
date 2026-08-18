@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <meta name="theme-color" content="#05050a">
-<title>Penny Warp v2.1.8 </title>
+<title>Penny Warp v2.1.9</title>
 <style>
 :root{
   --cyan:#00f3ff; --pink:#ff0055; --yellow:#ffe600; --bg:#05050a;
@@ -45,7 +45,7 @@ canvas{display:block;width:100%;height:100%;touch-action:none}
 
 #fab-btn{
   position:absolute;top:44%;right:12px;width:56px;height:56px;background:rgba(0,243,255,.16);
-  border:2px solid var(--cyan);border-radius:50%;color:var(--cyan);font-size:22px;
+  border:2px solid var(--cyan);border-radius:50%;color:var(--cyan);font-size:36px;line-height:1;
   display:flex;justify-content:center;align-items:center;cursor:pointer;z-index:18;
   box-shadow:0 0 12px var(--cyan);transition:.22s transform,.22s background,.28s top;will-change:top
 }
@@ -232,7 +232,7 @@ button.action-btn{min-height:46px;background:var(--pink);color:#fff;border:0;bor
     <div id="system-screen" class="system-screen">
       <div class="system-card">
         <div class="brand-title">PENNY WARP</div>
-        <div class="brand-version">v2.1.8</div>
+        <div class="brand-version">v2.1.9</div>
         <div id="system-content"></div>
       </div>
     </div>
@@ -331,9 +331,9 @@ button.action-btn{min-height:46px;background:var(--pink);color:#fff;border:0;bor
       <div class="section-title">物理手感</div>
       <div class="control full">
         <label for="natural-decel">自然減速</label>
-        <input id="natural-decel" type="range" min="10" max="100" step="1" value="30">
-        <output id="natural-decel-out">30%｜輕</output>
-        <div class="physics-level">10～30% 輕｜31～60% 中｜61～100% 強</div>
+        <input id="natural-decel" type="range" min="0" max="10" step="1" value="3">
+        <output id="natural-decel-out">3%｜輕</output>
+        <div class="physics-level">0% 無｜1～3% 輕｜4～7% 中｜8～10% 強</div>
       </div>
       <div class="control full">
         <label for="collision-decel">碰撞減速</label>
@@ -355,7 +355,7 @@ button.action-btn{min-height:46px;background:var(--pink);color:#fff;border:0;bor
       <div class="section-title">場地造型</div>
       <div class="control full">
         <label for="arena-theme">門柱 / 外框主題</label>
-        <select id="arena-theme"><option value="cyber" selected>Cyberpunk｜賽博龐克</option><option value="farm">Cute Farm｜可愛農場</option></select>
+        <select id="arena-theme"><option value="none">無</option><option value="cyber" selected>Cyberpunk｜賽博龐克</option><option value="farm">Cute Farm｜可愛農場</option></select>
         <div class="note">中央單一洞口與 Matter.js 碰撞區維持原案。</div>
       </div>
 
@@ -461,7 +461,7 @@ const DEFAULTS={
   selectEffect:'bc', selectIntensity:70, trailIntensity:80, aimMode:'warp',
   impactMode:'warp', impactIntensity:75, qualityMode:'auto',
   comic:true, combo:true, comicLevel:'normal', arenaTheme:'cyber', bgMode:'cyber',
-  naturalDecel:30, collisionDecel:3, movingGrab:'medium',
+  naturalDecel:3, collisionDecel:3, movingGrab:'medium',
   obstacleBumper:false, obstacleBlock:false, obstacleRotator:false, obstaclePulse:false, obstacleWarp:false
 };
 
@@ -635,7 +635,7 @@ function applySettings(s){
   els.selectEffect.value=x.selectEffect;els.selectIntensity.value=x.selectIntensity;els.trailIntensity.value=x.trailIntensity;
   els.aimMode.value=x.aimMode;els.impactMode.value=x.impactMode;els.impactIntensity.value=x.impactIntensity;
   els.qualityMode.value=x.qualityMode;els.comic.checked=x.comic;els.combo.checked=x.combo;els.comicLevel.value=x.comicLevel;els.arenaTheme.value=x.arenaTheme;els.bgMode.value=x.bgMode==='custom'?'custom-current':x.bgMode;
-  els.naturalDecel.value=x.naturalDecel;els.collisionDecel.value=(Number.isFinite(+x.collisionDecel)&&+x.collisionDecel>=0&&+x.collisionDecel<=10)?+x.collisionDecel:3;els.movingGrab.value=x.movingGrab;
+  els.naturalDecel.value=(Number.isFinite(+x.naturalDecel)&&+x.naturalDecel>=0&&+x.naturalDecel<=10)?+x.naturalDecel:3;els.collisionDecel.value=(Number.isFinite(+x.collisionDecel)&&+x.collisionDecel>=0&&+x.collisionDecel<=10)?+x.collisionDecel:3;els.movingGrab.value=x.movingGrab;
   els.obstacleBumper.checked=!!x.obstacleBumper;els.obstacleBlock.checked=!!x.obstacleBlock;els.obstacleRotator.checked=!!x.obstacleRotator;els.obstaclePulse.checked=!!x.obstaclePulse;els.obstacleWarp.checked=!!x.obstacleWarp;
   syncOutputs();updateRoles();
 }
@@ -649,7 +649,7 @@ function syncOutputs(){
   els.selectIntensityOut.value=els.selectIntensity.value+'%';
   els.trailIntensityOut.value=els.trailIntensity.value+'%';
   els.impactIntensityOut.value=els.impactIntensity.value+'%';
-  const level=v=>+v<=30?'輕':+v<=60?'中':'強';
+  const level=v=>+v===0?'無':+v<=3?'輕':+v<=7?'中':'強';
   const collisionLevel=v=>+v===0?'無':+v<=3?'輕':+v<=7?'中':'強';
   if(els.naturalDecelOut)els.naturalDecelOut.value=els.naturalDecel.value+'%｜'+level(els.naturalDecel.value);
   if(els.collisionDecelOut)els.collisionDecelOut.value=els.collisionDecel.value+'%｜'+collisionLevel(els.collisionDecel.value);
@@ -701,7 +701,7 @@ function loadBackgroundImage(url,okText,failText){
     };
     img.onload=()=>finish(true);
     img.onerror=()=>finish(false);
-    img.src=url+'?v=2.1.8';
+    img.src=url+'?v=2.1.9';
     setTimeout(()=>finish(false),2500);
   });
 }
@@ -765,13 +765,13 @@ function requestCustomBackground(){
 
 function loadCyberOverlay(){
   const img=new Image();img.onload=()=>{cyberOverlayImage=img;cyberOverlayReady=true};img.onerror=()=>{cyberOverlayImage=null;cyberOverlayReady=false};
-  img.src=CYBER_OVERLAY_URL+'?v=2.1.8';
+  img.src=CYBER_OVERLAY_URL+'?v=2.1.9';
 }
 function loadFarmOverlay(){
   const img=new Image();
   img.onload=()=>{farmOverlayImage=img;farmOverlayReady=true};
   img.onerror=()=>{farmOverlayImage=null;farmOverlayReady=false};
-  img.src=FARM_OVERLAY_URL+'?v=2.1.8';
+  img.src=FARM_OVERLAY_URL+'?v=2.1.9';
 }
 
 
@@ -815,10 +815,10 @@ function setupWalls(){
 }
 
 
-function naturalFrictionAir(){const pct=clamp(+(els.naturalDecel?.value||30),10,100);return 0.008+0.0002666667*pct}
+function naturalFrictionAir(){const raw=els.naturalDecel?.value;const pct=clamp(raw==null||raw===''?3:+raw,0,10);return pct===0?0:pct*0.001}
 function refreshPuckNaturalDecel(){const fa=naturalFrictionAir();for(const p of pucks)p.frictionAir=fa}
 function movingGrabMultiplier(){const mode=els.movingGrab?.value||'medium';return mode==='none'?1:mode==='light'?1.25:mode==='strong'?2:1.6}
-function collisionDecelFactor(){const raw=els.collisionDecel?.value;const pct=clamp(raw==null||raw===''?3:+raw,0,10);return pct===0?1:clamp(1-pct*0.0024,.976,1)}
+function collisionDecelFactor(){const raw=els.collisionDecel?.value;const pct=clamp(raw==null||raw===''?3:+raw,0,10);return 1-(pct/100)}
 function applyCollisionDecelTo(body){if(!body||body.label!=='PUCK')return;const f=collisionDecelFactor();Body.setVelocity(body,{x:body.velocity.x*f,y:body.velocity.y*f});Body.setAngularVelocity(body,(body.angularVelocity||0)*f)}
 
 function rowXs(n){
@@ -842,6 +842,7 @@ function updateCount(){const c=halfCounts();els.p1.textContent=c.bottom;els.p2.t
 
 function closeSettingsPanel(){
   els.menu.classList.add('hidden-menu');
+  els.fab.classList.remove('hidden');
   pausedByMenu=false;
   els.pauseBadge.classList.remove('show');
 }
@@ -1647,7 +1648,13 @@ function draw(){
   for(let y=80;y<580;y+=20){ctx.beginPath();ctx.moveTo(10,y);ctx.lineTo(350,y);ctx.stroke()}
   ctx.restore();
 
-  if(els.arenaTheme.value==='cyber'&&cyberOverlayReady)ctx.drawImage(cyberOverlayImage,0,0,360,640);else drawArenaFallback();
+  if(els.arenaTheme.value==='cyber'){
+    if(cyberOverlayReady)ctx.drawImage(cyberOverlayImage,0,0,360,640);
+    else drawArenaFallback();
+  }else if(els.arenaTheme.value==='farm'){
+    if(farmOverlayReady)ctx.drawImage(farmOverlayImage,0,0,360,640);
+    else drawArenaFallback();
+  }
 
   drawObstacles(performance.now());
 
